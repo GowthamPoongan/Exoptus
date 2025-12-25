@@ -1,41 +1,98 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ============================================
+# EXOPTUS MONOREPO - .gitignore
+# ============================================
 
-# dependencies
+# Dependencies
 node_modules/
+.pnpm-store/
 
-# Expo
-.expo/
+# Build outputs
 dist/
-web-build/
-expo-env.d.ts
+build/
+*.tsbuildinfo
 
-# Native
-.kotlin/
+# ============================================
+# Expo / React Native
+# ============================================
+.expo/
+web-build/
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
 .metro-health-check*
 
-# debug
+# iOS (generated)
+ios/
+
+# Android build artifacts (keep config, ignore builds)
+android/build/
+android/app/build/
+android/.gradle/
+android/app/.cxx/
+android/local.properties
+
+# ============================================
+# Environment & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Keep .env.example files
+!.env.example
+!**/.env.example
+
+# ============================================
+# Database
+# ============================================
+*.db
+*.db-journal
+prisma/migrations/**/migration_lock.toml
+
+# ============================================
+# IDE & Editor
+# ============================================
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+Thumbs.db
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
+# ============================================
+# Testing & Coverage
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
 
-# local env files
-.env*.local
+# ============================================
+# Temporary Files
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
 
-# typescript
-*.tsbuildinfo
+# ============================================
+# Package manager locks (keep only npm)
+# ============================================
+yarn.lock
+pnpm-lock.yaml
 
-# generated native folders
-/ios
-/android

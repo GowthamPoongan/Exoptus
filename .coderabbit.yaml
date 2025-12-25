@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+early_access: false
+
+reviews:
+  # Enable reviews for all PRs
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_title_placeholder: "[CodeRabbit]"
+
+  # Path-based settings for monorepo
+  path_instructions:
+    # Mobile App
+    - path: "apps/mobile/app/**"
+      instructions: |
+        This is a React Native + Expo application using TypeScript.
+        - Check for proper TypeScript typing
+        - Ensure Expo Router navigation patterns are followed
+        - Verify NativeWind styling consistency
+        - Check for accessibility best practices
+        - Ensure animations use Reanimated properly
+
+    - path: "apps/mobile/components/**"
+      instructions: |
+        These are reusable UI components.
+        - Verify components are small and focused
+        - Check for proper prop typing
+        - Ensure consistent styling patterns
+        - Verify accessibility props (accessibilityLabel, etc.)
+
+    - path: "apps/mobile/store/**"
+      instructions: |
+        These are Zustand state stores.
+        - Check for proper state typing
+        - Verify persist configuration if applicable
+        - Ensure actions are properly defined
+
+    - path: "apps/mobile/services/**"
+      instructions: |
+        These are API and utility services for mobile.
+        - Check for proper error handling
+        - Verify async/await patterns
+        - Ensure proper typing for API responses
+
+    # Auth Service
+    - path: "services/auth-service/**"
+      instructions: |
+        This is the authentication service (Express.js + Prisma).
+        - Check for proper error handling and status codes
+        - Verify authentication/authorization logic
+        - Ensure Prisma queries are optimized
+        - Check for security best practices (input validation, rate limiting)
+        - Verify JWT token handling
+
+    # Shared Packages
+    - path: "packages/api-contracts/**"
+      instructions: |
+        These are shared API schemas using Zod.
+        - Ensure schemas are comprehensive and well-documented
+        - Check for backward compatibility
+        - Verify types are exported correctly
+
+    - path: "packages/ui-design-system/**"
+      instructions: |
+        This is the shared design system.
+        - Check for consistent design tokens
+        - Verify theming support
+        - Ensure accessibility compliance
+
+    - path: "packages/utils/**"
+      instructions: |
+        These are shared utility functions.
+        - Check for proper TypeScript typing
+        - Verify edge case handling
+        - Ensure functions are well-documented
+
+    - path: "packages/feature-flags/**"
+      instructions: |
+        This is the feature flag system.
+        - Check for proper flag naming conventions
+        - Verify default values are sensible
+        - Ensure no breaking changes to existing flags
+
+    # Infrastructure
+    - path: "infra/**"
+      instructions: |
+        This is infrastructure configuration.
+        - Check for security best practices
+        - Verify configuration is environment-aware
+        - Ensure no secrets are committed
+
+    - path: ".github/**"
+      instructions: |
+        These are GitHub Actions workflows and configurations.
+        - Check for proper caching strategies
+        - Verify job dependencies
+        - Ensure secrets are used correctly
+
+  # Auto-review settings
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+# Chat settings
+chat:
+  auto_reply: true
+
+# Code Filters (ignore certain files)
+path_filters:
+  - "!**/*.lock"
+  - "!**/node_modules/**"
+  - "!**/.expo/**"
+  - "!**/ios/Pods/**"
+  - "!**/android/build/**"
+  - "!**/android/.gradle/**"
+  - "!**/android/app/build/**"
+  - "!**/*.min.js"
+  - "!**/*.bundle.js"
+  - "!**/dist/**"
+  - "!**/.gitkeep"
+  - "!**/package-lock.json"
+
+# Knowledge base for AI context
+knowledge_base:
+  learnings:
+    scope: auto
