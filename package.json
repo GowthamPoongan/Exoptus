@@ -18,25 +18,13 @@
     "db:migrate": "npm run db:migrate -w @exoptus/auth-service",
     "db:studio": "npm run db:studio -w @exoptus/auth-service",
     "db:push": "npm run db:push -w @exoptus/auth-service",
-    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
-    "prepare": "husky install"
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "husky": "^9.0.0",
-    "lint-staged": "^15.0.0"
+    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
   }
 }
