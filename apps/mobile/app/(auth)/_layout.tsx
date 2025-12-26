@@ -3,9 +3,9 @@
  *
  * Contains all authentication-related screens:
  * - Welcome (entry point)
- * - Sign In
  * - Sign Up with Email
  * - Email Verification
+ * - Verifying (email verification in progress)
  *
  * UX Intent: Smooth, guided flow with meaningful transitions
  */
@@ -32,12 +32,6 @@ export default function AuthLayout() {
         }}
       />
       <Stack.Screen
-        name="signin"
-        options={{
-          animation: "slide_from_right",
-        }}
-      />
-      <Stack.Screen
         name="signup-email"
         options={{
           animation: "slide_from_right",
@@ -49,6 +43,13 @@ export default function AuthLayout() {
           animation: "slide_from_right",
           // User should be able to go back to change email
           gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="verifying"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: false, // Can't go back while verifying
         }}
       />
     </Stack>

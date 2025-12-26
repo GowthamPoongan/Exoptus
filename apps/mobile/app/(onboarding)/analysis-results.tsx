@@ -19,6 +19,7 @@ import Animated, {
   Easing,
   interpolate,
   useAnimatedProps,
+  SharedValue,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
@@ -303,7 +304,7 @@ function GrowthGraph({
   progress,
 }: {
   data: typeof GROWTH_DATA;
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
 }) {
   const graphWidth = width - 80;
   const graphHeight = 160;
