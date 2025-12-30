@@ -9,7 +9,7 @@
  * - Profile
  *
  * UX Intent:
- * - Liquid glass floating tab bar
+ * - Premium white glass floating dock-style tab bar
  * - Smooth tab transitions
  * - Hide tab bar for Odyssey screen
  */
@@ -17,7 +17,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Stack, usePathname } from "expo-router";
-import { BottomTabBar } from "../../components/BottomTabBar";
+import { PremiumBottomTabBar } from "../../components/PremiumBottomTabBar";
 
 export default function MainLayout() {
   const pathname = usePathname();
@@ -40,6 +40,18 @@ export default function MainLayout() {
         <Stack.Screen name="resume" />
         <Stack.Screen name="profile" />
         <Stack.Screen
+          name="notifications"
+          options={{
+            animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
+          name="calendar"
+          options={{
+            animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
           name="odyssey"
           options={{
             animation: "fade",
@@ -48,8 +60,8 @@ export default function MainLayout() {
         />
       </Stack>
 
-      {/* Floating Bottom Tab Bar */}
-      {showTabBar && <BottomTabBar />}
+      {/* Premium Floating Bottom Tab Bar - White Glass Dock */}
+      {showTabBar && <PremiumBottomTabBar />}
     </View>
   );
 }

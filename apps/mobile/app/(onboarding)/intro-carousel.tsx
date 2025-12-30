@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import {
   View,
   Text,
@@ -6,6 +7,7 @@ import {
   Dimensions,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
@@ -60,11 +62,44 @@ export default function IntroCarousel() {
   const router = useRouter();
   const videoRef = useRef<Video>(null);
 
+  // Pause/play based on app state to avoid AudioFocusNotAcquiredException
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        try {
+          if (nextState !== "active") {
+            // pause when backgrounded
+            videoRef.current?.pauseAsync().catch(() => {});
+          } else {
+            // resume only if content overlay not shown and not already playing
+            videoRef.current
+              ?.getStatusAsync()
+              .then((st) => {
+                if (st && !st.isPlaying && !showContent) {
+                  videoRef.current?.playAsync().catch(() => {});
+                }
+              })
+              .catch(() => {});
+          }
+        } catch (e) {
+          // ignore audio focus errors
+        }
+      }
+    );
+
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showContent]);
+
   const hasPausedRef = useRef(false);
   const videoDurationRef = useRef(0);
+  const hasStartedRef = useRef(false);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showContent, setShowContent] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [videoError, setVideoError] = useState(false);
 
   const overlayOpacity = useSharedValue(0);
   const cardTranslateY = useSharedValue(50);
@@ -74,7 +109,7 @@ export default function IntroCarousel() {
 
   const currentSlideData = CAROUSEL_SLIDES[currentSlide];
 
-  const showOverlayContent = () => {
+  const showOverlayContent = useCallback(() => {
     setShowContent(true);
     overlayOpacity.value = withTiming(1, { duration: 400 });
     cardOpacity.value = withDelay(
@@ -90,27 +125,73 @@ export default function IntroCarousel() {
       700,
       withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) })
     );
-  };
+  }, [overlayOpacity, cardOpacity, cardTranslateY, buttonOpacity, buttonScale]);
 
-  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
+  const onPlaybackStatusUpdate = useCallback(
+    (status: AVPlaybackStatus) => {
+      if (!status.isLoaded) {
+        // Handle error state
+        if (status.error) {
+          console.error("Video playback error:", status.error);
+          setVideoError(true);
+          setIsLoading(false);
+          // Show content anyway so user isn't stuck
+          showOverlayContent();
+        }
+        return;
+      }
 
-    if (status.durationMillis && videoDurationRef.current === 0) {
-      videoDurationRef.current = status.durationMillis;
-    }
+      // Video is loaded
+      if (!hasStartedRef.current && status.isPlaying) {
+        hasStartedRef.current = true;
+        setIsLoading(false);
+      }
 
-    if (!hasPausedRef.current && videoDurationRef.current > 0) {
-      const currentTime = status.positionMillis;
-      const pauseTime =
-        videoDurationRef.current * currentSlideData.pauseAtPercent;
+      // Store duration when first available
+      if (status.durationMillis && videoDurationRef.current === 0) {
+        videoDurationRef.current = status.durationMillis;
+      }
 
-      if (currentTime >= pauseTime) {
-        hasPausedRef.current = true;
-        videoRef.current?.pauseAsync();
+      // Check if we should pause and show content
+      try {
+        if (
+          !hasPausedRef.current &&
+          videoDurationRef.current > 0 &&
+          currentSlideData &&
+          typeof currentSlideData.pauseAtPercent === "number"
+        ) {
+          const currentTime = status.positionMillis || 0;
+          const pauseTime =
+            videoDurationRef.current * currentSlideData.pauseAtPercent;
+
+          if (currentTime >= pauseTime) {
+            hasPausedRef.current = true;
+            videoRef.current?.pauseAsync().catch(() => {});
+            showOverlayContent();
+          }
+        }
+      } catch (e) {
+        // Defensive: if slide data is undefined or any unexpected error occurs,
+        // avoid crashing the app and show the content overlay so the user can continue.
+        console.warn("IntroCarousel playback guard hit:", e);
+        if (!showContent) showOverlayContent();
+      }
+    },
+    [currentSlideData.pauseAtPercent, showOverlayContent]
+  );
+
+  // Timeout to prevent getting stuck if video doesn't load
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading && !showContent) {
+        console.warn("Video loading timeout - showing content anyway");
+        setIsLoading(false);
         showOverlayContent();
       }
-    }
-  };
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [currentSlide, isLoading, showContent, showOverlayContent]);
 
   const hideOverlayContent = (callback: () => void) => {
     buttonOpacity.value = withTiming(0, { duration: 200 });
@@ -131,7 +212,12 @@ export default function IntroCarousel() {
     } else {
       hideOverlayContent(async () => {
         setShowContent(false);
-        await videoRef.current?.playAsync();
+        try {
+          await videoRef.current?.playAsync();
+        } catch (err) {
+          // ignore audio focus / background playback errors
+          console.warn("Video play failed (ignored):", err?.message || err);
+        }
         setTimeout(() => {
           hasPausedRef.current = false;
           videoDurationRef.current = 0;
@@ -141,6 +227,7 @@ export default function IntroCarousel() {
     }
   };
 
+  // Reset state when slide changes
   useEffect(() => {
     overlayOpacity.value = 0;
     cardOpacity.value = 0;
@@ -148,7 +235,12 @@ export default function IntroCarousel() {
     buttonOpacity.value = 0;
     buttonScale.value = 0.9;
     hasPausedRef.current = false;
+    hasStartedRef.current = false;
     videoDurationRef.current = 0;
+    setIsLoading(true);
+    setVideoError(false);
+    setShowContent(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSlide]);
 
   const overlayStyle = useAnimatedStyle(() => ({
@@ -182,6 +274,15 @@ export default function IntroCarousel() {
         shouldPlay={true}
         isLooping={false}
         onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+        onError={(error) => {
+          console.error("Video error:", error);
+          setVideoError(true);
+          setIsLoading(false);
+          showOverlayContent();
+        }}
+        onLoad={() => {
+          console.log("Video loaded for slide", currentSlide);
+        }}
       />
 
       <LinearGradient
@@ -189,6 +290,14 @@ export default function IntroCarousel() {
         locations={[0, 0.5, 1]}
         style={styles.gradientOverlay}
       />
+
+      {/* Loading indicator */}
+      {isLoading && !showContent && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#A855F7" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      )}
 
       {showContent && (
         <Animated.View style={[styles.contentOverlay, overlayStyle]}>
@@ -262,6 +371,17 @@ const styles = StyleSheet.create({
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
   },
   contentOverlay: {
     ...StyleSheet.absoluteFillObject,

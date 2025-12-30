@@ -43,9 +43,31 @@ router.post("/email/start", async (req: Request, res: Response) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if user exists, create if not
-    let user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    let user: any;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    } catch (prismaErr) {
+      console.error(
+        "Prisma findUnique error (email/start):",
+        normalizedEmail,
+        prismaErr
+      );
+      // Fallback: try findFirst in case of schema/client mismatch
+      try {
+        user = await prisma.user.findFirst({
+          where: { email: normalizedEmail },
+        });
+      } catch (fallbackErr) {
+        console.error(
+          "Prisma findFirst fallback failed (email/start):",
+          normalizedEmail,
+          fallbackErr
+        );
+        throw prismaErr;
+      }
+    }
 
     if (!user) {
       // Create new user
@@ -378,9 +400,31 @@ router.get("/google/callback", async (req: Request, res: Response) => {
     const normalizedEmail = googleUser.email.toLowerCase().trim();
 
     // Check if user exists
-    let user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    let user: any;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    } catch (prismaErr) {
+      console.error(
+        "Prisma findUnique error (google):",
+        normalizedEmail,
+        prismaErr
+      );
+      // Fallback: try findFirst in case of schema/client mismatch
+      try {
+        user = await prisma.user.findFirst({
+          where: { email: normalizedEmail },
+        });
+      } catch (fallbackErr) {
+        console.error(
+          "Prisma findFirst fallback failed (google):",
+          normalizedEmail,
+          fallbackErr
+        );
+        throw prismaErr;
+      }
+    }
 
     if (!user) {
       // NEW USER - Create account with Google

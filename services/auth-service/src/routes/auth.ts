@@ -697,11 +697,20 @@ router.post("/google", async (req: Request, res: Response) => {
     // Get redirect path based on onboarding status
     const redirectPath = getRedirectPath(user);
 
+    // Check if user is returning with existing data
+    const isReturningUser =
+      user.onboardingStatus === "in_progress" ||
+      user.onboardingStatus === "completed" ||
+      user.onboardingCompleted ||
+      (user.onboardingStep && user.onboardingStep !== ONBOARDING_STEPS[0]) ||
+      user.onboardingData !== null;
+
     res.json({
       success: true,
       data: {
         token: jwtToken,
         redirectTo: redirectPath,
+        isReturningUser,
         user: {
           id: user.id,
           email: user.email,
@@ -829,6 +838,67 @@ router.post("/logout", async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error) {
     res.json({ success: true });
+  }
+});
+
+// ============================================
+// RESET ONBOARDING (Fresh Start)
+// ============================================
+router.post("/reset-onboarding", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const payload = verifyToken(token);
+
+    if (!payload) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid token",
+      });
+    }
+
+    // Reset user's onboarding data
+    const updatedUser = await prisma.user.update({
+      where: { id: payload.userId },
+      data: {
+        onboardingCompleted: false,
+        onboardingStep: ONBOARDING_STEPS[0], // Reset to first step
+        onboardingStatus: "not_started",
+        lastCompletedStep: null,
+        onboardingData: null, // Clear any saved data
+        onboardingCompletedAt: null,
+      },
+    });
+
+    console.log(`🔄 Onboarding reset for user: ${updatedUser.email}`);
+
+    res.json({
+      success: true,
+      message: "Onboarding reset successfully",
+      data: {
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          onboardingCompleted: updatedUser.onboardingCompleted,
+          onboardingStep: updatedUser.onboardingStep,
+          onboardingStatus: updatedUser.onboardingStatus,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Reset onboarding error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to reset onboarding",
+    });
   }
 });
 

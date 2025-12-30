@@ -18,7 +18,10 @@
     "db:migrate": "npm run db:migrate -w @exoptus/auth-service",
     "db:studio": "npm run db:studio -w @exoptus/auth-service",
     "db:push": "npm run db:push -w @exoptus/auth-service",
-    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "android:dev": "concurrently --kill-others \"npm:auth-server\" \"npm:mobile-android-dev\"",
+    "auth-server": "npm run dev -w @exoptus/auth-service",
+    "mobile-android-dev": "npm run android:dev -w @exoptus/mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

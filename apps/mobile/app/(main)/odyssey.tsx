@@ -10,7 +10,7 @@
  * - Focused interaction without distractions
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Dimensions,
-  ImageBackground,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -36,6 +36,7 @@ import Animated, {
   FadeIn,
   FadeInUp,
   SlideInDown,
+  interpolate,
 } from "react-native-reanimated";
 import Svg, {
   Path,
@@ -147,13 +148,14 @@ const SUGGESTIONS = [
   { id: "4", emoji: "📝", text: "Resume tips" },
 ];
 
-// Animated Orb Component
+// Animated Orb Component with Rotating Logo
 const OdysseyOrb = () => {
   const scale = useSharedValue(1);
   const rotate = useSharedValue(0);
   const pulseOpacity = useSharedValue(0.3);
+  const innerRotate = useSharedValue(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Gentle floating animation
     scale.value = withRepeat(
       withSequence(
@@ -164,9 +166,16 @@ const OdysseyOrb = () => {
       true
     );
 
-    // Slow rotation
+    // Slow outer rotation
     rotate.value = withRepeat(
       withTiming(360, { duration: 30000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    // Faster inner logo rotation (opposite direction)
+    innerRotate.value = withRepeat(
+      withTiming(-360, { duration: 8000, easing: Easing.linear }),
       -1,
       false
     );
@@ -174,26 +183,48 @@ const OdysseyOrb = () => {
     // Pulse glow
     pulseOpacity.value = withRepeat(
       withSequence(
-        withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.7, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const orbStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
   }));
 
+  const innerLogoStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${innerRotate.value}deg` }],
+  }));
+
   const glowStyle = useAnimatedStyle(() => ({
     opacity: pulseOpacity.value,
+  }));
+
+  // Ring segments for rotating effect
+  const ringStyle1 = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotate.value}deg` }],
+    opacity: interpolate(pulseOpacity.value, [0.3, 0.7], [0.4, 0.8]),
+  }));
+
+  const ringStyle2 = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-rotate.value * 0.7}deg` }],
+    opacity: interpolate(pulseOpacity.value, [0.3, 0.7], [0.3, 0.6]),
   }));
 
   return (
     <View style={styles.orbContainer}>
       {/* Outer glow */}
       <Animated.View style={[styles.orbOuterGlow, glowStyle]} />
+
+      {/* Rotating ring 1 */}
+      <Animated.View style={[styles.rotatingRing, styles.ring1, ringStyle1]} />
+
+      {/* Rotating ring 2 */}
+      <Animated.View style={[styles.rotatingRing, styles.ring2, ringStyle2]} />
 
       {/* Middle glow */}
       <Animated.View style={[styles.orbMiddleGlow, glowStyle]} />
@@ -206,14 +237,17 @@ const OdysseyOrb = () => {
           end={{ x: 1, y: 1 }}
           style={styles.orbGradient}
         >
+          {/* Inner rotating logo */}
+          <Animated.View style={[styles.innerLogoContainer, innerLogoStyle]}>
+            <Image
+              source={require("../../assets/images/odyssey-avatar.png")}
+              style={styles.innerLogo}
+              resizeMode="contain"
+            />
+          </Animated.View>
+
           {/* Inner highlight */}
           <View style={styles.orbHighlight} />
-
-          {/* Eyes/Face */}
-          <View style={styles.orbFace}>
-            <View style={styles.orbEye} />
-            <View style={styles.orbEye} />
-          </View>
         </LinearGradient>
       </Animated.View>
     </View>
@@ -504,34 +538,51 @@ const styles = StyleSheet.create({
     marginVertical: 40,
   },
   orbContainer: {
-    width: 180,
-    height: 180,
+    width: 220,
+    height: 220,
     alignItems: "center",
     justifyContent: "center",
   },
   orbOuterGlow: {
     position: "absolute",
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+  },
+  rotatingRing: {
+    position: "absolute",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "rgba(139, 92, 246, 0.4)",
+  },
+  ring1: {
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
+  },
+  ring2: {
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 1,
   },
   orbMiddleGlow: {
     position: "absolute",
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "rgba(167, 139, 250, 0.3)",
+    backgroundColor: "rgba(167, 139, 250, 0.25)",
   },
   orb: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     overflow: "hidden",
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
+    shadowOpacity: 0.6,
+    shadowRadius: 35,
     elevation: 15,
   },
   orbGradient: {
@@ -540,24 +591,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative",
   },
+  innerLogoContainer: {
+    width: 80,
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  innerLogo: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
   orbHighlight: {
     position: "absolute",
-    top: 15,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
-  orbFace: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  orbEye: {
-    width: 8,
-    height: 20,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    top: 12,
+    left: 18,
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   suggestionsContainer: {
     paddingHorizontal: 20,

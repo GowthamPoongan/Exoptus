@@ -7,10 +7,11 @@
  * UX Intent:
  * - Premium dark glass aesthetic
  * - Calm, informative at-a-glance view
- * - Smooth scrolling with header animation
+ * - Instagram-style smooth scrolling with header animation
+ * - Top bar with Exoptus branding (image), notifications & calendar
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -21,6 +22,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Modal,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -34,12 +36,14 @@ import Animated, {
   FadeIn,
   FadeInUp,
   FadeInDown,
+  runOnJS,
 } from "react-native-reanimated";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 
 import { useDashboardStore } from "../../store/dashboardStore";
+import { useUserStore } from "../../store/userStore";
 import { GlassCard } from "../../components/GlassCard";
 import { ProfileCompletionCard } from "../../components/ProfileCompletionCard";
 import { JRScoreCard } from "../../components/JRScoreCard";
@@ -175,31 +179,45 @@ const TrendingUpIcon = ({
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(true);
   const scrollY = useSharedValue(0);
+  const lastScrollY = useSharedValue(0);
 
   const { jrScore, notifications, profileSteps } = useDashboardStore();
+  // Get user name from store (fallback to "User" if not set)
+  const userName = useUserStore((state) => state.user?.name) || "User";
 
-  // Scroll handler for header animation
+  // Instagram-style scroll handler - hide on scroll down, show on scroll up
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      const currentY = event.contentOffset.y;
+      const diff = currentY - lastScrollY.value;
+
+      // Only trigger visibility change after threshold
+      if (currentY > 50) {
+        if (diff > 5) {
+          // Scrolling down - hide header
+          runOnJS(setHeaderVisible)(false);
+        } else if (diff < -5) {
+          // Scrolling up - show header
+          runOnJS(setHeaderVisible)(true);
+        }
+      } else {
+        // At top - always show
+        runOnJS(setHeaderVisible)(true);
+      }
+
+      lastScrollY.value = currentY;
+      scrollY.value = currentY;
     },
   });
 
-  // Header animation styles
+  // Header animation - Instagram-style smooth slide
   const headerStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(scrollY.value, [0, 100], [0, -80], "clamp");
-    const opacity = interpolate(scrollY.value, [0, 60], [1, 0], "clamp");
+    const translateY = withTiming(headerVisible ? 0 : -100, { duration: 250 });
+    const opacity = withTiming(headerVisible ? 1 : 0, { duration: 200 });
     return {
       transform: [{ translateY }],
-      opacity,
-    };
-  });
-
-  // Compact header for scrolled state
-  const compactHeaderStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [60, 100], [0, 1], "clamp");
-    return {
       opacity,
     };
   });
@@ -207,7 +225,6 @@ export default function HomeScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Simulate data refresh
     setTimeout(() => {
       setRefreshing(false);
     }, 1500);
@@ -220,7 +237,7 @@ export default function HomeScreen() {
 
   const handleNotifications = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Navigate to notifications
+    router.push("/(main)/notifications" as any);
   };
 
   const handleOdysseyPress = () => {
@@ -238,45 +255,69 @@ export default function HomeScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Large Header - hides on scroll */}
+      {/* Top App Bar - Instagram-style hide/show */}
       <Animated.View style={[styles.header, headerStyle]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.brandText}>Exoptus</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={handleNotifications}
-            activeOpacity={0.7}
-          >
-            <BellIcon color="#FAFAFA" size={22} />
-            {unreadCount > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={handleOpenCalendar}
-            activeOpacity={0.7}
-          >
-            <CalendarIcon color="#FAFAFA" size={22} />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      {/* Compact Header - shows on scroll */}
-      <Animated.View style={[styles.compactHeader, compactHeaderStyle]}>
         {Platform.OS === "ios" ? (
-          <BlurView intensity={80} tint="dark" style={styles.compactHeaderBlur}>
-            <Text style={styles.compactBrandText}>Exoptus</Text>
+          <BlurView intensity={60} tint="dark" style={styles.headerBlur}>
+            <View style={styles.headerInner}>
+              {/* Exoptus Logo/Title Image */}
+              <View style={styles.headerLeft}>
+                <Image
+                  source={require("../../assets/images/Exoptus-title.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* Right Icons: Calendar, Notifications */}
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={styles.headerIcon}
+                  onPress={handleNotifications}
+                  activeOpacity={0.7}
+                >
+                  <BellIcon color="#18181B" size={24} />
+                  {unreadCount > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </BlurView>
         ) : (
-          <View style={styles.compactHeaderAndroid}>
-            <Text style={styles.compactBrandText}>Exoptus</Text>
+          <View style={styles.headerAndroid}>
+            <View style={styles.headerInner}>
+              {/* Exoptus Logo/Title Image */}
+              <View style={styles.headerLeft}>
+                <Image
+                  source={require("../../assets/images/Exoptus-title.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* Right Icons: Calendar, Notifications */}
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={styles.headerIcon}
+                  onPress={handleNotifications}
+                  activeOpacity={0.7}
+                >
+                  <BellIcon color="#18181B" size={24} />
+                  {unreadCount > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
       </Animated.View>
@@ -301,9 +342,9 @@ export default function HomeScreen() {
           <ProfileCompletionCard />
         </Animated.View>
 
-        {/* JR Score Card */}
+        {/* JR Score Card - Pass user name */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <JRScoreCard />
+          <JRScoreCard userName={userName} />
         </Animated.View>
 
         {/* Odyssey AI Card */}
@@ -376,11 +417,7 @@ export default function HomeScreen() {
         <View style={styles.bottomSpacer} />
       </AnimatedScrollView>
 
-      {/* Calendar Modal */}
-      <CalendarModal
-        visible={calendarVisible}
-        onClose={() => setCalendarVisible(false)}
-      />
+      {/* Calendar Modal is rendered globally in _layout.tsx */}
     </View>
   );
 }
@@ -395,41 +432,54 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    zIndex: 100,
+  },
+  headerBlur: {
+    paddingTop: Platform.OS === "ios" ? 50 : 30,
+    paddingBottom: 12,
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  headerAndroid: {
+    paddingTop: Platform.OS === "ios" ? 50 : 30,
+    paddingBottom: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "rgba(10, 10, 15, 0.95)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  headerInner: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    zIndex: 100,
   },
   headerLeft: {
     flex: 1,
   },
-  brandText: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#FAFAFA",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "System",
-    letterSpacing: -0.5,
+  logoImage: {
+    width: 120,
+    height: 32,
   },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   headerIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
   },
   notificationBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     backgroundColor: "#EF4444",
     borderRadius: 8,
     minWidth: 16,
@@ -443,41 +493,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  compactHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 99,
-  },
-  compactHeaderBlur: {
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: 12,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  compactHeaderAndroid: {
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: 12,
-    paddingHorizontal: 20,
-    backgroundColor: "rgba(10, 10, 15, 0.95)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  compactBrandText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FAFAFA",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "System",
-    textAlign: "center",
-  },
   scrollContent: {
-    paddingTop: Platform.OS === "ios" ? 130 : 110,
-    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 110 : 90,
+    paddingHorizontal: 0,
   },
   actionCardsSection: {
     marginTop: 8,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -488,6 +510,7 @@ const styles = StyleSheet.create({
   },
   insightsSection: {
     marginTop: 24,
+    paddingHorizontal: 20,
   },
   insightCard: {
     padding: 20,

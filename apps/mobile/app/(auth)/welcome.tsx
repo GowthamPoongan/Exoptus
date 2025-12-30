@@ -21,8 +21,9 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
-import authService from "../../services/auth";
+import authService from "../../../../services/auth";
 import { useUserStore } from "../../store/userStore";
+import { User } from "../../types";
 
 // Lazy import Google Sign-In to avoid crash in Expo Go
 let GoogleSignin: any = null;
@@ -115,6 +116,50 @@ export default function WelcomeScreen() {
     );
   }, []);
 
+  // Show returning user dialog
+  const showReturningUserDialog = (
+    user: User,
+    continueCallback: () => void
+  ) => {
+    Alert.alert(
+      "Welcome Back! 👋",
+      "You have existing progress saved. Would you like to continue where you left off, or start fresh?\n\n⚠️ Starting fresh will delete your previous data.",
+      [
+        {
+          text: "Continue",
+          onPress: () => {
+            console.log("✅ User chose to continue with existing data");
+            continueCallback();
+          },
+          style: "default",
+        },
+        {
+          text: "Start Fresh",
+          onPress: async () => {
+            console.log("🔄 User chose to start fresh - resetting onboarding");
+            const resetResult = await authService.resetOnboarding();
+            if (resetResult.success) {
+              // Update user state and navigate to beginning
+              const updatedUser = {
+                ...user,
+                onboardingStatus: "not_started",
+                onboardingStep: "intro_carousel",
+                onboardingCompleted: false,
+              };
+              setUser(updatedUser);
+              router.replace("/(onboarding)/intro-carousel");
+            } else {
+              Alert.alert("Error", "Failed to reset. Please try again.");
+              continueCallback(); // Fallback to continue
+            }
+          },
+          style: "destructive",
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
   // Handle successful Google sign-in
   const handleGoogleSignIn = async (idToken: string) => {
     try {
@@ -124,9 +169,20 @@ export default function WelcomeScreen() {
       if (result.success && result.user) {
         console.log("✅ Google sign-in successful");
         setUser(result.user);
-        const route = authService.getRouteForUser(result.user);
-        console.log("🚀 Navigating to:", route);
-        router.replace(route);
+
+        // Check if returning user with existing data
+        if (result.isReturningUser) {
+          console.log("👤 Returning user detected - showing options");
+          showReturningUserDialog(result.user, () => {
+            const route = authService.getRouteForUser(result.user!);
+            console.log("🚀 Navigating to:", route);
+            router.replace(route);
+          });
+        } else {
+          const route = authService.getRouteForUser(result.user);
+          console.log("🚀 Navigating to:", route);
+          router.replace(route);
+        }
       } else {
         console.log("❌ Google sign-in failed:", result.error);
         Alert.alert("Sign In Failed", result.error || "Please try again");

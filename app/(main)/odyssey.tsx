@@ -183,7 +183,10 @@ const OdysseyOrb = () => {
   }, []);
 
   const orbStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+    transform: [
+      { scale: scale.value },
+      { rotate: `${rotate.value}deg` },
+    ] as const,
   }));
 
   const glowStyle = useAnimatedStyle(() => ({

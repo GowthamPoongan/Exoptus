@@ -2,12 +2,12 @@
  * Odyssey AI Card Component
  *
  * Prominent glass card to access the Odyssey AI assistant.
- * Features soft gradient background with sparkle textures.
+ * Features rotating logo and soft gradient background with sparkle textures.
  *
  * UX Intent:
  * - Calm, inviting presence
  * - Not chatty or pushy
- * - Premium feel with subtle animation
+ * - Premium feel with rotating logo animation
  */
 
 import React from "react";
@@ -54,17 +54,19 @@ const SparkleIcon = ({
   </Svg>
 );
 
-// Odyssey Logo/Orb Component
-const OdysseyOrb = () => {
+// Odyssey Rotating Logo Component
+const OdysseyLogo = () => {
   const rotate = useSharedValue(0);
   const scale = useSharedValue(1);
 
   React.useEffect(() => {
+    // Continuous rotation animation
     rotate.value = withRepeat(
-      withTiming(360, { duration: 20000, easing: Easing.linear }),
+      withTiming(360, { duration: 8000, easing: Easing.linear }),
       -1,
       false
     );
+    // Subtle breathing scale effect
     scale.value = withRepeat(
       withSequence(
         withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
@@ -75,43 +77,31 @@ const OdysseyOrb = () => {
     );
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotate.value}deg` }, { scale: scale.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotate: `${rotate.value}deg` },
+        { scale: scale.value },
+      ] as const,
+    };
+  });
 
   return (
-    <View style={styles.orbContainer}>
-      {/* Glow effect */}
-      <View style={styles.orbGlow} />
+    <View style={styles.logoContainer}>
+      {/* Outer glow effect */}
+      <View style={styles.logoGlow} />
 
-      {/* Orb */}
-      <Animated.View style={[styles.orb, animatedStyle]}>
-        <LinearGradient
-          colors={["#EC4899", "#8B5CF6", "#3B82F6"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.orbGradient}
-        >
-          <Svg width={40} height={40} viewBox="0 0 24 24">
-            <Defs>
-              <RadialGradient id="starGlow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-              </RadialGradient>
-            </Defs>
-            {/* Star shape */}
-            <Path
-              d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10L12 2Z"
-              fill="url(#starGlow)"
-              opacity={0.9}
-            />
-          </Svg>
-        </LinearGradient>
+      {/* Rotating logo with image */}
+      <Animated.View style={[styles.logoWrapper, animatedStyle]}>
+        <Image
+          source={require("../assets/images/odyssey-avatar.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </Animated.View>
     </View>
   );
 };
-
 export const OdysseyCard: React.FC<OdysseyCardProps> = ({ onPress }) => {
   const sparkleOpacity1 = useSharedValue(0.3);
   const sparkleOpacity2 = useSharedValue(0.6);
@@ -175,8 +165,8 @@ export const OdysseyCard: React.FC<OdysseyCardProps> = ({ onPress }) => {
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Odyssey Orb */}
-          <OdysseyOrb />
+          {/* Rotating Odyssey Logo */}
+          <OdysseyLogo />
 
           {/* Text */}
           <View style={styles.textContainer}>
@@ -229,30 +219,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  orbContainer: {
-    width: 70,
-    height: 70,
+  // Rotating Logo styles
+  logoContainer: {
+    width: 75,
+    height: 75,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
   },
-  orbGlow: {
+  logoGlow: {
     position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(139, 92, 246, 0.3)",
+    width: 85,
+    height: 85,
+    borderRadius: 42.5,
+    backgroundColor: "rgba(139, 92, 246, 0.35)",
   },
-  orb: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  logoWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     overflow: "hidden",
-  },
-  orbGradient: {
-    flex: 1,
+    backgroundColor: "#1a1a2e",
     alignItems: "center",
     justifyContent: "center",
+    // Border glow
+    borderWidth: 2,
+    borderColor: "rgba(139, 92, 246, 0.5)",
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
   },
   textContainer: {
     flex: 1,
