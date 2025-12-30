@@ -28,7 +28,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useUserStore } from "../../store/userStore";
-import authService from "../../services/auth";
+import authService from "../../../../services/auth";
 
 const { width, height } = Dimensions.get("window");
 

@@ -1,45 +1,23 @@
 {
   "expo": {
-    "name": "EXOPTUS",
+    "name": "Exoptus",
     "slug": "exoptus",
+    "scheme": "exoptus",
+    "sdkVersion": "54.0.0",
+    "platforms": ["android", "ios", "web"],
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "scheme": "exoptus",
-    "splash": {
-      "image": "./assets/images/logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
+    "icon": "./assets/images/logo.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.exoptus.app"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.exoptus.app",
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/logo.png"
     },
-    "android": {
-      "package": "com.exoptus.app",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "monochromeImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#0A0A0F"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/images/favicon.png",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser",
-      "@react-native-google-signin/google-signin"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "extra": {}
   }
 }

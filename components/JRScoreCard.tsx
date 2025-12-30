@@ -2,11 +2,19 @@
  * JR Score Card Component
  *
  * Displays the Job Readiness Score with a smooth line graph.
+ * Features color semantics based on score zones.
  * The North Star metric of the app.
+ *
+ * Color Zones:
+ * 🔴 Red: 0–30 (unprepared)
+ * 🟠 Orange: 30–55 (developing)
+ * 🟡 Yellow: 55–75 (competitive)
+ * 🟢 Green: 75+ (job-ready)
  *
  * UX Intent:
  * - Clear, glanceable score display
  * - Visual trend shows progress over time
+ * - Color communicates readiness level
  * - Motivating without overwhelming
  */
 
@@ -38,27 +46,42 @@ interface JRScoreCardProps {
   userName?: string;
 }
 
+// Get color based on score zone
+const getScoreColor = (score: number) => {
+  if (score < 30)
+    return { primary: "#EF4444", secondary: "#FCA5A5", label: "Unprepared" };
+  if (score < 55)
+    return { primary: "#F97316", secondary: "#FDBA74", label: "Developing" };
+  // Figma design shows 78% as Blue. Using Brand Blue for upper range.
+  return {
+    primary: "#3B82F6",
+    secondary: "#60A5FA",
+    label: score < 80 ? "Competitive" : "Job-Ready",
+  };
+};
+
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export const JRScoreCard: React.FC<JRScoreCardProps> = ({
   score: propScore,
   history: propHistory,
-  userName = "user name",
+  userName = "User",
 }) => {
   // Get from store if not provided
   const storeData = useDashboardStore();
   const score = propScore ?? storeData.jrScore;
   const history = propHistory ||
     storeData.jrScoreHistory || [
-      { date: "2024-01-01", score: 45 },
-      { date: "2024-01-15", score: 52 },
-      { date: "2024-02-01", score: 58 },
-      { date: "2024-02-15", score: 65 },
+      { date: "2024-01-01", score: 25 },
+      { date: "2024-01-15", score: 35 },
+      { date: "2024-02-01", score: 48 },
+      { date: "2024-02-15", score: 62 },
       { date: "2024-03-01", score: score },
     ];
 
   const progress = useSharedValue(0);
+  const scoreColors = getScoreColor(score);
 
   React.useEffect(() => {
     progress.value = withTiming(1, {
@@ -66,6 +89,11 @@ export const JRScoreCard: React.FC<JRScoreCardProps> = ({
       easing: Easing.out(Easing.cubic),
     });
   }, []);
+
+  // Get color for each point based on its score
+  const getPointColor = (pointScore: number) => {
+    return getScoreColor(pointScore).primary;
+  };
 
   // Generate smooth curve path from history data
   const generatePath = () => {
@@ -155,25 +183,39 @@ export const JRScoreCard: React.FC<JRScoreCardProps> = ({
         </View>
         <View style={styles.scoreContainer}>
           <Text style={styles.scoreLabel}>your JR Score</Text>
-          <Text style={styles.scoreValue}>{score}%</Text>
+          <Text style={[styles.scoreValue, { color: scoreColors.primary }]}>
+            {score}%
+          </Text>
+          <Text style={[styles.scoreStatus, { color: scoreColors.secondary }]}>
+            {scoreColors.label}
+          </Text>
         </View>
       </View>
 
       {/* Graph */}
-      <View style={styles.graphContainer}>
+      <View
+        style={[
+          styles.graphContainer,
+          { backgroundColor: `${scoreColors.primary}08` },
+        ]}
+      >
         <Svg width={GRAPH_WIDTH} height={GRAPH_HEIGHT}>
           <Defs>
             <LinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-              <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+              <Stop
+                offset="0%"
+                stopColor={scoreColors.primary}
+                stopOpacity="0.3"
+              />
+              <Stop
+                offset="100%"
+                stopColor={scoreColors.primary}
+                stopOpacity="0"
+              />
             </LinearGradient>
             <LinearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0%" stopColor="#60A5FA" />
-              <Stop offset="100%" stopColor="#3B82F6" />
-            </LinearGradient>
-            <LinearGradient id="glowGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#3B82F6" stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0.2" />
+              <Stop offset="0%" stopColor={scoreColors.secondary} />
+              <Stop offset="100%" stopColor={scoreColors.primary} />
             </LinearGradient>
           </Defs>
 
@@ -190,32 +232,29 @@ export const JRScoreCard: React.FC<JRScoreCardProps> = ({
             strokeLinejoin="round"
           />
 
-          {/* Glow points on line */}
-          {history.map((_, index) => {
+          {/* Glow points on line - color based on score at that point */}
+          {history.map((item, index) => {
             const padding = 20;
             const graphWidth = GRAPH_WIDTH - padding * 2;
             const graphHeight = GRAPH_HEIGHT - padding * 2;
             const minScore = Math.min(...history.map((h) => h.score)) - 5;
             const maxScore = Math.max(...history.map((h) => h.score)) + 5;
             const scoreRange = maxScore - minScore;
-            const item = history[index];
             const x = padding + (index / (history.length - 1)) * graphWidth;
             const y =
               padding +
               graphHeight -
               ((item.score - minScore) / scoreRange) * graphHeight;
 
+            const pointColor = getPointColor(item.score);
+
             return (
               <Circle
                 key={index}
                 cx={x}
                 cy={y}
-                r={index === history.length - 1 ? 6 : 3}
-                fill={
-                  index === history.length - 1
-                    ? "#3B82F6"
-                    : "rgba(59, 130, 246, 0.5)"
-                }
+                r={index === history.length - 1 ? 6 : 4}
+                fill={pointColor}
               />
             );
           })}
@@ -224,8 +263,8 @@ export const JRScoreCard: React.FC<JRScoreCardProps> = ({
           <Circle
             cx={lastPoint.x}
             cy={lastPoint.y}
-            r={12}
-            fill="rgba(59, 130, 246, 0.3)"
+            r={14}
+            fill={`${scoreColors.primary}30`}
           />
         </Svg>
       </View>
@@ -236,6 +275,7 @@ export const JRScoreCard: React.FC<JRScoreCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginTop: 8,
+    marginBottom: 16,
   },
   welcomeRow: {
     flexDirection: "row",
@@ -267,10 +307,15 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   scoreValue: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: "700",
-    color: "#3B82F6",
     fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "System",
+  },
+  scoreStatus: {
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "System",
+    marginTop: -2,
   },
   graphContainer: {
     alignItems: "center",
@@ -278,7 +323,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: "rgba(59, 130, 246, 0.05)",
   },
 });
 

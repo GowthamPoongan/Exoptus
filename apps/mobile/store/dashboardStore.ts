@@ -49,7 +49,16 @@ export interface Notification {
   message: string;
   read: boolean;
   createdAt: string;
-  type: "info" | "success" | "warning" | "action";
+  timestamp: Date;
+  type:
+    | "info"
+    | "success"
+    | "warning"
+    | "action"
+    | "achievement"
+    | "reminder"
+    | "update"
+    | "tip";
 }
 
 interface DashboardState {
@@ -92,9 +101,10 @@ interface DashboardState {
   completeRoadmapItem: (levelId: string, itemId: string) => void;
 
   addNotification: (
-    notification: Omit<Notification, "id" | "createdAt">
+    notification: Omit<Notification, "id" | "createdAt" | "timestamp">
   ) => void;
   markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
   clearNotifications: () => void;
 
   setCalendarOpen: (open: boolean) => void;
@@ -227,11 +237,12 @@ const defaultRoadmapLevels: RoadmapLevel[] = [
 const defaultNotifications: Notification[] = [
   {
     id: "1",
-    title: "Welcome to EXOPTUS!",
+    title: "Welcome to Exoptus!",
     message:
       "Your career journey begins here. Complete your profile to get personalized recommendations.",
     read: false,
     createdAt: new Date().toISOString(),
+    timestamp: new Date(),
     type: "info",
   },
   {
@@ -239,8 +250,27 @@ const defaultNotifications: Notification[] = [
     title: "New skill assessment available",
     message: "Take the quick assessment to update your JR Score.",
     read: false,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    timestamp: new Date(Date.now() - 3600000),
     type: "action",
+  },
+  {
+    id: "3",
+    title: "Profile 60% complete",
+    message: "Add your education details to unlock more features.",
+    read: true,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    timestamp: new Date(Date.now() - 86400000),
+    type: "reminder",
+  },
+  {
+    id: "4",
+    title: "JR Score improved!",
+    message: "Your JR Score increased by 5 points this week. Great progress!",
+    read: true,
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    timestamp: new Date(Date.now() - 172800000),
+    type: "achievement",
   },
 ];
 
@@ -359,6 +389,7 @@ export const useDashboardStore = create<DashboardState>()(
               ...notification,
               id: Date.now().toString(),
               createdAt: new Date().toISOString(),
+              timestamp: new Date(),
             },
             ...state.notifications,
           ],
@@ -371,6 +402,12 @@ export const useDashboardStore = create<DashboardState>()(
             n.id === id ? { ...n, read: true } : n
           ),
           unreadCount: Math.max(0, state.unreadCount - 1),
+        })),
+
+      markAllNotificationsRead: () =>
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, read: true })),
+          unreadCount: 0,
         })),
 
       clearNotifications: () =>

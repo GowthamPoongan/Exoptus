@@ -17,6 +17,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import * as Font from "expo-font";
+import CalendarModal from "../components/CalendarModal";
+import { useDashboardStore } from "../store/dashboardStore";
 
 // Import global styles
 import "../styles/global";
@@ -26,14 +28,15 @@ export default function RootLayout() {
 
   // Handle deep links
   useEffect(() => {
-    // Only handle deep links when navigation is ready
-    if (!rootNavigationState?.key) return;
-
     // Handle initial URL (app opened via deep link)
     const handleInitialURL = async () => {
-      const url = await Linking.getInitialURL();
-      if (url) {
-        handleDeepLink(url);
+      try {
+        const url = await Linking.getInitialURL();
+        if (url) {
+          handleDeepLink(url);
+        }
+      } catch (e) {
+        console.error("Error getting initial URL:", e);
       }
     };
 
@@ -42,18 +45,33 @@ export default function RootLayout() {
       handleDeepLink(event.url);
     });
 
+    // Run immediately (don't wait for navigation key) so we can intercept
+    // custom-scheme deep links that sometimes arrive before expo-router is ready.
     handleInitialURL();
 
     return () => {
       subscription.remove();
     };
-  }, [rootNavigationState?.key]);
+  }, []);
 
   const handleDeepLink = async (url: string) => {
     console.log("📱 Deep link received:", url);
 
     // Parse the URL to extract params
     const parsed = Linking.parse(url);
+
+    // If the app was opened with the custom scheme but no path (e.g. "exoptus:///" or "exoptus://"),
+    // expo-router may treat that as an unmatched route. Redirect directly to the welcome screen.
+    if (
+      (parsed.scheme &&
+        parsed.scheme.toLowerCase() === "exoptus" &&
+        (!parsed.path || parsed.path === "")) ||
+      /^exoptus:\/\/*$/.test(url)
+    ) {
+      console.log("📱 Deep link with empty path — redirecting to welcome");
+      router.replace("/(auth)/welcome");
+      return;
+    }
     console.log("📱 Parsed URL:", JSON.stringify(parsed, null, 2));
 
     // Extract token from URL
@@ -76,7 +94,7 @@ export default function RootLayout() {
     if (isGoogleCallback && token) {
       console.log("📱 ✅ Google OAuth callback with token");
       // Import and use auth service to handle the callback
-      const authService = require("../services/auth").default;
+      const authService = require("../../../services/auth").default;
       const { useUserStore } = require("../store/userStore");
 
       try {
@@ -174,6 +192,11 @@ export default function RootLayout() {
             }}
           />
         </Stack>
+        {/* Global Calendar Modal so any header can open it */}
+        <CalendarModal
+          visible={useDashboardStore((s) => s.isCalendarOpen)}
+          onClose={() => useDashboardStore.getState().setCalendarOpen(false)}
+        />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

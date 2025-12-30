@@ -348,7 +348,7 @@ export default function ProfileScreen() {
           <GlassCard style={styles.menuCard} intensity="light" noPadding>
             <MenuItem
               icon={<InfoIcon color="#60A5FA" size={22} />}
-              title="About EXOPTUS"
+              title="About Exoptus"
               subtitle="Version 1.0.0"
               onPress={() => {}}
             />
@@ -370,7 +370,7 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>EXOPTUS v1.0.0</Text>
+          <Text style={styles.footerText}>Exoptus v1.0.0</Text>
           <Text style={styles.footerSubtext}>
             Your career navigation companion
           </Text>

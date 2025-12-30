@@ -1,13 +1,13 @@
 /**
  * Bottom Tab Bar Component
  *
- * Liquid-glass floating navigation bar for EXOPTUS.
- * Features smooth animations, haptic feedback, and premium glassmorphism.
+ * Premium glass navigation bar for EXOPTUS.
+ * Features a cohesive glassmorphism look with uniform tab distribution.
  *
  * UX Intent:
- * - Career compass dial - premium and trustworthy
- * - Calm, never distracting navigation
- * - macOS Dock-like hover feel, restrained for mobile
+ * - Clean, unified navigation bar
+ * - Dark mode glass aesthetic
+ * - Smooth, Instagram-level animations
  */
 
 import React, { useCallback } from "react";
@@ -19,22 +19,17 @@ import {
   Dimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
-  Extrapolation,
 } from "react-native-reanimated";
-import Svg, { Path, Circle, Rect, G } from "react-native-svg";
+import Svg, { Path, Circle, G } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const TAB_BAR_WIDTH = SCREEN_WIDTH - 40;
-const TAB_WIDTH = TAB_BAR_WIDTH / 5;
 
 interface TabItem {
   name: string;
@@ -47,6 +42,7 @@ interface TabItem {
 }
 
 // Custom Icons as SVG components
+
 const HomeIcon = ({
   color,
   size,
@@ -60,16 +56,15 @@ const HomeIcon = ({
     <Path
       d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.2 : 0}
+      fill={focused ? `${color}20` : "transparent"}
     />
     <Path
       d="M9 22V12H15V22"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -87,38 +82,18 @@ const RoadmapIcon = ({
 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
-      d="M12 2L12 22"
+      d="M4 19.5C4 19.5 4 15 9 15C14 15 14 11 9 11C4 11 4 6.5 9 6.5H20"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
-      strokeDasharray={focused ? "0" : "0"}
+      strokeLinejoin="round"
     />
-    <Circle
-      cx="12"
-      cy="6"
-      r="3"
+    <Path
+      d="M17 3.5L20 6.5L17 9.5"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.3 : 0}
-    />
-    <Circle
-      cx="12"
-      cy="12"
-      r="3"
-      stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.5 : 0}
-    />
-    <Circle
-      cx="12"
-      cy="18"
-      r="3"
-      stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.7 : 0}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </Svg>
 );
@@ -138,18 +113,16 @@ const ExploreIcon = ({
       cy="12"
       r="10"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.1 : 0}
+      strokeWidth={2}
+      fill={focused ? `${color}15` : "transparent"}
     />
     <Path
       d="M16.24 7.76L14.12 14.12L7.76 16.24L9.88 9.88L16.24 7.76Z"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.3 : 0}
+      fill={focused ? color : "transparent"}
     />
   </Svg>
 );
@@ -167,37 +140,44 @@ const ResumeIcon = ({
     <Path
       d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.15 : 0}
+      fill={focused ? `${color}20` : "transparent"}
     />
     <Path
       d="M14 2V8H20"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <Path
-      d="M16 13H8"
+      d="M12 18H12.01"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
     />
     <Path
-      d="M16 17H8"
+      d="M12 14H12.01"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
     />
     <Path
-      d="M10 9H8"
+      d="M16 14H16.01"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
     />
+    <Path d="M8 14H8.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Path
+      d="M16 18H16.01"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
+    <Path d="M8 18H8.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
 
@@ -213,22 +193,23 @@ const ProfileIcon = ({
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle
       cx="12"
-      cy="8"
+      cy="7"
       r="4"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
-      fill={focused ? color : "none"}
-      fillOpacity={focused ? 0.3 : 0}
+      strokeWidth={2}
+      fill={focused ? `${color}30` : "transparent"}
     />
     <Path
-      d="M20 21C20 18.2386 16.4183 16 12 16C7.58172 16 4 18.2386 4 21"
+      d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21"
       stroke={color}
-      strokeWidth={focused ? 2.5 : 2}
+      strokeWidth={2}
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </Svg>
 );
 
+// Tabs configuration
 const tabs: TabItem[] = [
   { name: "home", label: "Home", icon: HomeIcon },
   { name: "roadmap", label: "Roadmap", icon: RoadmapIcon },
@@ -243,54 +224,29 @@ interface BottomTabBarProps {
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
+// Tab Item Component
 const TabItem: React.FC<{
   tab: TabItem;
   isActive: boolean;
   onPress: () => void;
-  index: number;
-}> = ({ tab, isActive, onPress, index }) => {
+}> = ({ tab, isActive, onPress }) => {
   const scale = useSharedValue(1);
-  const translateY = useSharedValue(0);
-  const glowOpacity = useSharedValue(0);
-
-  React.useEffect(() => {
-    if (isActive) {
-      scale.value = withSpring(1.05, { damping: 15, stiffness: 200 });
-      translateY.value = withSpring(-3, { damping: 15, stiffness: 200 });
-      glowOpacity.value = withTiming(1, { duration: 200 });
-    } else {
-      scale.value = withSpring(1, { damping: 15, stiffness: 200 });
-      translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
-      glowOpacity.value = withTiming(0, { duration: 200 });
-    }
-  }, [isActive]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { translateY: translateY.value }],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
 
   const handlePress = useCallback(() => {
-    // Micro haptic feedback
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-
-    // Press animation
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 300 }, () => {
-      scale.value = withSpring(isActive ? 1.05 : 1, {
-        damping: 15,
-        stiffness: 200,
-      });
+    scale.value = withSpring(0.9, { damping: 15, stiffness: 400 }, () => {
+      scale.value = withSpring(1, { damping: 15, stiffness: 200 });
     });
-
     onPress();
-  }, [onPress, isActive]);
+  }, [onPress]);
 
-  const iconColor = isActive ? "#3B82F6" : "#71717A";
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const iconColor = isActive ? "#FFFFFF" : "#71717A";
 
   return (
     <AnimatedTouchable
@@ -298,15 +254,6 @@ const TabItem: React.FC<{
       onPress={handlePress}
       activeOpacity={0.8}
     >
-      {/* Glow effect under active tab */}
-      <Animated.View style={[styles.glow, glowStyle]}>
-        <LinearGradient
-          colors={["rgba(59, 130, 246, 0.4)", "rgba(59, 130, 246, 0)"]}
-          style={styles.glowGradient}
-        />
-      </Animated.View>
-
-      {/* Icon */}
       <View style={styles.iconContainer}>
         {tab.icon({ color: iconColor, size: 24, focused: isActive })}
       </View>
@@ -360,51 +307,33 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 
   return (
     <Animated.View style={[styles.container, containerStyle]}>
+      {/* Background bar with BlurView */}
       <View style={styles.tabBarWrapper}>
         {Platform.OS === "ios" ? (
-          <BlurView intensity={60} tint="dark" style={styles.blurView}>
-            <LinearGradient
-              colors={[
-                "rgba(255, 255, 255, 0.12)",
-                "rgba(255, 255, 255, 0.06)",
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.gradient}
-            >
-              <View style={styles.tabsContainer}>
-                {tabs.map((tab, index) => (
-                  <TabItem
-                    key={tab.name}
-                    tab={tab}
-                    isActive={activeTab === tab.name}
-                    onPress={() => onTabPress(tab.name)}
-                    index={index}
-                  />
-                ))}
-              </View>
-            </LinearGradient>
+          <BlurView intensity={40} tint="dark" style={styles.blurView}>
+            <View style={styles.innerBar}>
+              {tabs.map((tab) => (
+                <TabItem
+                  key={tab.name}
+                  tab={tab}
+                  isActive={activeTab === tab.name}
+                  onPress={() => onTabPress(tab.name)}
+                />
+              ))}
+            </View>
           </BlurView>
         ) : (
           <View style={styles.androidTabBar}>
-            <LinearGradient
-              colors={["rgba(30, 30, 46, 0.95)", "rgba(20, 20, 35, 0.98)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.gradient}
-            >
-              <View style={styles.tabsContainer}>
-                {tabs.map((tab, index) => (
-                  <TabItem
-                    key={tab.name}
-                    tab={tab}
-                    isActive={activeTab === tab.name}
-                    onPress={() => onTabPress(tab.name)}
-                    index={index}
-                  />
-                ))}
-              </View>
-            </LinearGradient>
+            <View style={styles.innerBar}>
+              {tabs.map((tab) => (
+                <TabItem
+                  key={tab.name}
+                  tab={tab}
+                  isActive={activeTab === tab.name}
+                  onPress={() => onTabPress(tab.name)}
+                />
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -415,9 +344,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: Platform.OS === "ios" ? 34 : 20,
-    left: 20,
-    right: 20,
+    bottom: Platform.OS === "ios" ? 30 : 16,
+    left: 16,
+    right: 16,
     alignItems: "center",
   },
   tabBarWrapper: {
@@ -426,13 +355,13 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    // Soft ambient shadow
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    // Premium shadow
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
   },
   blurView: {
     flex: 1,
@@ -443,22 +372,20 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
     borderRadius: 32,
+    backgroundColor: "rgba(17, 17, 27, 0.95)",
   },
-  gradient: {
-    flex: 1,
-    borderRadius: 32,
-  },
-  tabsContainer: {
+  innerBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     paddingHorizontal: 8,
+    backgroundColor: "rgba(17, 17, 27, 0.85)",
   },
   tabItem: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    flex: 1,
     height: "100%",
   },
   iconContainer: {
@@ -467,18 +394,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-  },
-  glow: {
-    position: "absolute",
-    bottom: 8,
-    width: 40,
-    height: 20,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  glowGradient: {
-    flex: 1,
-    borderRadius: 10,
   },
 });
 

@@ -21,7 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useUserStore } from "../../store/userStore";
-import authService from "../../services/auth";
+import authService from "../../../../services/auth";
 
 const { width, height } = Dimensions.get("window");
 

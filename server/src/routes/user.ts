@@ -64,6 +64,7 @@ router.get(
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user!.userId },
+        include: { profile: true },
       });
 
       if (!user) {
@@ -86,6 +87,7 @@ router.get(
           onboardingStatus: user.onboardingStatus,
           authProviders: user.authProviders.split(","),
           createdAt: user.createdAt,
+          profile: user.profile || null,
         },
       });
     } catch (error: any) {
@@ -101,8 +103,12 @@ router.get(
 // UPDATE PROFILE
 // ============================================
 const updateProfileSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(200).optional(),
   avatar: z.string().url().optional(),
+  college: z.string().max(200).optional(),
+  course: z.string().max(200).optional(),
+  year: z.number().int().positive().optional(),
+  phone: z.string().max(30).optional(),
 });
 
 router.patch(
@@ -112,23 +118,56 @@ router.patch(
     try {
       const updates = updateProfileSchema.parse(req.body);
 
-      const user = await prisma.user.update({
+      // Update User basic fields if present
+      const userUpdates: any = {};
+      if (updates.name) userUpdates.name = updates.name;
+      if (updates.avatar) userUpdates.avatar = updates.avatar;
+
+      if (Object.keys(userUpdates).length > 0) {
+        await prisma.user.update({
+          where: { id: req.user!.userId },
+          data: userUpdates,
+        });
+      }
+
+      // Upsert Profile record
+      const profile = await prisma.profile.upsert({
+        where: { userId: req.user!.userId },
+        create: {
+          userId: req.user!.userId,
+          name: updates.name || null,
+          college: updates.college || null,
+          course: updates.course || null,
+          year: updates.year || null,
+          phone: updates.phone || null,
+        },
+        update: {
+          name: updates.name || undefined,
+          college: updates.college || undefined,
+          course: updates.course || undefined,
+          year: updates.year || undefined,
+          phone: updates.phone || undefined,
+        },
+      });
+
+      const user = await prisma.user.findUnique({
         where: { id: req.user!.userId },
-        data: updates,
+        include: { profile: true },
       });
 
       res.json({
         success: true,
         data: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          avatar: user.avatar,
-          emailVerified: user.emailVerified,
-          onboardingCompleted: user.onboardingCompleted,
-          onboardingStep: user.onboardingStep,
-          onboardingStatus: user.onboardingStatus,
-          authProviders: user.authProviders.split(","),
+          id: user!.id,
+          email: user!.email,
+          name: user!.name,
+          avatar: user!.avatar,
+          emailVerified: user!.emailVerified,
+          onboardingCompleted: user!.onboardingCompleted,
+          onboardingStep: user!.onboardingStep,
+          onboardingStatus: user!.onboardingStatus,
+          authProviders: user!.authProviders.split(","),
+          profile: user!.profile || profile,
         },
       });
     } catch (error: any) {
@@ -139,6 +178,7 @@ router.patch(
         });
       }
 
+      console.error("Profile update error:", error);
       res.status(500).json({
         success: false,
         error: "Failed to update profile",

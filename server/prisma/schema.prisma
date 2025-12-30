@@ -6,17 +6,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// For SQLite (simple local development - no setup):
+// Use SQLite for local development to avoid needing PostgreSQL.
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
-
-// For PostgreSQL (production or if you prefer):
-// datasource db {
-//   provider = "postgresql"
-//   url      = env("DATABASE_URL")
-// }
 
 // ============================================
 // USERS TABLE - Core Identity
@@ -50,9 +44,16 @@ model User {
   updatedAt        DateTime @updatedAt @map("updated_at")
   lastLoginAt      DateTime? @map("last_login_at")
   
+  // JR Score
+  jrScore          Float?   @default(0) @map("jr_score") // Job Readiness Score (0-100)
+  jrScoreUpdatedAt DateTime? @map("jr_score_updated_at")
+  
   // Relations
   sessions         AuthSession[]
   emailTokens      EmailVerificationToken[]
+  onboardingProfile OnboardingProfile?
+  userFeedback     UserFeedback[]
+  profile          Profile?
 
   @@map("users")
 }
@@ -99,4 +100,107 @@ model EmailVerificationToken {
   @@index([token])
   @@index([email])
   @@map("email_verification_tokens")
+}
+
+// ============================================
+// ONBOARDING PROFILE TABLE - Detailed User Data
+// ============================================
+// Stores all onboarding chat data in structured format
+model OnboardingProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  
+  // Personal Information
+  name      String?
+  gender    String?
+  age       Int?
+  state     String?
+  city      String?
+  
+  // Academic/Professional Status
+  status    String?  // "Student", "Graduate", "Working"
+  
+  // Academic Details (for Students/Graduates)
+  college   String?
+  course    String?
+  stream    String?
+  semester  Int?
+  passoutYear Int?   @map("passout_year")
+  cgpa      Float?
+  
+  // Skills & Documents
+  // Stored as a JSON string in SQLite dev environment. In Postgres this
+  // can be migrated back to String[] or Json as needed.
+  subjects  String?  // Array of subjects/skills (JSON string)
+  resumeUrl String?  @map("resume_url")
+  officeIdUrl String? @map("office_id_url")
+  
+  // Career Aspiration
+  careerAspiration String? @map("career_aspiration")
+  selectedRoleId   String? @map("selected_role_id")
+  selectedRoleName String? @map("selected_role_name")
+  expectedSalary   String? @map("expected_salary")
+  skillGap         Int?    @map("skill_gap") // Percentage gap
+  
+  // Metadata
+  flowPath  String?  @map("flow_path") // "student", "graduate", "working"
+  completedAt DateTime? @map("completed_at")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("onboarding_profiles")
+}
+
+  // ============================================
+  // PROFILE TABLE - Simple user profile (separate from onboarding)
+  // ============================================
+  model Profile {
+    id        String   @id @default(uuid())
+    userId    String   @unique @map("user_id")
+
+    name      String?
+    college   String?
+    course    String?
+    year      Int?
+    phone     String?
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relation back to User
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+
+    @@index([userId])
+    @@map("profiles")
+  }
+
+// ============================================
+// USER FEEDBACK TABLE
+// ============================================
+// Stores user feedback when they reach dashboard
+model UserFeedback {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  
+  // Feedback data
+  rating    String   // "love", "frustrated", "thumbs_up", "clapping"
+  comment   String?  // Optional text feedback
+  source    String   @default("dashboard") // Where feedback was collected
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("user_feedback")
 }
