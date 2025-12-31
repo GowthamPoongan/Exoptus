@@ -261,17 +261,17 @@ router.get("/verify-redirect", async (req: Request, res: Response) => {
   // For development build (custom scheme with proper route)
   const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
 
-  // For Expo Go development (needs /-- prefix)
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
-  const expoGoLink = `${expoDevUrl}/--(auth)/verifying?token=${token}`;
+  // For Expo Go development (needs /--/ prefix and relative path)
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
+  const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${token}`;
 
   // For production (standalone app with proper route)
   const appUrl = process.env.APP_URL || "exoptus://";
   const prodLink = `${appUrl}(auth)/verifying?token=${token}`;
 
-  // Use dev build link for development (works with exoptus:// custom scheme)
+  // Use Expo Go link for development, prod link for production
   const deepLink =
-    process.env.NODE_ENV === "production" ? prodLink : devBuildLink;
+    process.env.NODE_ENV === "production" ? prodLink : expoGoLink;
 
   res.send(`
     <html>
@@ -492,7 +492,7 @@ router.get("/google/callback", async (req: Request, res: Response) => {
     console.log(`✅ Google OAuth complete: ${user.email}`);
 
     // Show success page with deep link to app (works from localhost on phone browser)
-    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
     const appScheme = process.env.APP_SCHEME || "exoptus";
 
     const expoLink = `${expoDevUrl}/--/google-callback?token=${jwtToken}&success=true`;
