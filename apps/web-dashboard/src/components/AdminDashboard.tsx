@@ -18,7 +18,9 @@ const COLORS = {
   sidebarActive: "linear-gradient(135deg, #0575E6 0%, #021B79 100%)",
 };
 
-const API_URL = "http://10.175.216.47:3000";
+// Use environment variable or fallback to localhost
+// For production or custom deployments, set VITE_API_URL in .env
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface Stats {
   totalUsers: number;
