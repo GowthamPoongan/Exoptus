@@ -88,6 +88,29 @@ npm run dev
 | `npm run test`       | Run all tests           |
 | `npm run db:studio`  | Open Prisma Studio      |
 
+### Mobile Device Testing
+
+By default, the app uses `localhost` for API connections, which works for emulators/simulators. For testing on physical devices:
+
+1. Find your computer's local IP address:
+   - **Windows**: `ipconfig` (look for IPv4 Address)
+   - **Mac/Linux**: `ifconfig | grep inet` or `ip addr show`
+
+2. Update environment variables in `server/.env`:
+   ```bash
+   API_URL="http://YOUR_IP_ADDRESS:3000"
+   EXPO_DEV_URL="exp://YOUR_IP_ADDRESS:8081"
+   ```
+
+3. Update `services/api.ts`:
+   ```typescript
+   const DEV_API_URL = "http://YOUR_IP_ADDRESS:3000";
+   ```
+
+4. Restart the development servers
+
+**Note**: Never commit your local IP address to version control. Use environment variables for configuration.
+
 ## Documentation
 
 - [Architecture Overview](docs/architecture/OVERVIEW.md)

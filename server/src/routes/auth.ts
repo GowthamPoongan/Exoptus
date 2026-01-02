@@ -277,7 +277,7 @@ router.get("/verify-redirect", async (req: Request, res: Response) => {
   }
 
   // For Expo local dev server (Metro)
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
 
   // Build a nested dev-client link that some dev clients (expo-dev-client) accept.
   // This uses the `exp+` scheme to ask the dev-client to open a nested URL.
@@ -561,7 +561,7 @@ router.get("/google/callback", async (req: Request, res: Response) => {
     console.log(`✅ Google OAuth complete: ${user.email}`);
 
     // Show success page with deep link to app (works from localhost on phone browser)
-    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
     const appScheme = process.env.APP_SCHEME || "exoptus";
 
     const expoLink = `${expoDevUrl}/--/google-callback?token=${jwtToken}&success=true`;
@@ -695,7 +695,7 @@ router.get("/google/callback", async (req: Request, res: Response) => {
 
 // Helper to get the app deep link URL
 function getAppDeepLink(customPath: string = ""): string {
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const appScheme = process.env.APP_SCHEME || "exoptus";
 
   // For development (Expo Go)

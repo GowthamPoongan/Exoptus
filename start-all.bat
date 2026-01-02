@@ -38,7 +38,7 @@ echo Starting EXOPTUS services...
 echo.
 echo 🌐 Admin Dashboard: http://localhost:5173
 echo 📱 Mobile App: http://localhost:8081
-echo 🖥️  Server API: http://10.175.216.47:3000
+echo 🖥️  Server API: http://localhost:3000
 echo.
 echo Admin Key: admin-secret-key-change-in-prod
 echo.
