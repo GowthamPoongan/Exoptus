@@ -16,7 +16,7 @@ datasource db {
 // USERS TABLE - Core Identity
 // ============================================
 // One row = one human
-// Email is the primary identity keyadb reverse tcp:8081 tcp:8081
+// Email is the primary identity key
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
