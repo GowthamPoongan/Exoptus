@@ -40,13 +40,13 @@ export async function sendMagicLinkEmail(
   )}`;
 
   // For Expo Go development: use exp:// scheme with proper route
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
     token
   )}`;
 
   // Web redirect for testing – include source if provided so the landing page can prefer a client
-  const apiUrl = process.env.API_URL || "http://10.175.216.47:3000";
+  const apiUrl = process.env.API_URL || "http://localhost:3000";
   const webLink = `${apiUrl}/auth/verify-redirect?token=${encodeURIComponent(
     token
   )}${source ? `&source=${encodeURIComponent(source)}` : ""}`;

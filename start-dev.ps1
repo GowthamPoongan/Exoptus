@@ -57,8 +57,8 @@ Write-Host "1. Scan the QR code with Expo Go app" -ForegroundColor White
 Write-Host "2. Or press 'a' for Android emulator" -ForegroundColor White
 Write-Host "3. Or press 'i' for iOS simulator" -ForegroundColor White
 Write-Host ""
-Write-Host "🔗 Backend API: http://10.175.216.47:3000" -ForegroundColor Cyan
-Write-Host "🔗 Expo App: http://10.175.216.47:8081" -ForegroundColor Cyan
+Write-Host "🔗 Backend API: http://localhost:3000" -ForegroundColor Cyan
+Write-Host "🔗 Expo App: http://localhost:8081" -ForegroundColor Cyan
 Write-Host ""
 
 # Start Expo in current window

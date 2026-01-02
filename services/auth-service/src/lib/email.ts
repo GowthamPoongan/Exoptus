@@ -35,11 +35,11 @@ export async function sendMagicLinkEmail(
   const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
 
   // For Expo Go development: use exp:// scheme with proper route
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const expoGoLink = `${expoDevUrl}/--(auth)/verifying?token=${token}`;
 
   // Web redirect for testing
-  const apiUrl = process.env.API_URL || "http://10.175.216.47:3000";
+  const apiUrl = process.env.API_URL || "http://localhost:3000";
   const webLink = `${apiUrl}/auth/verify-redirect?token=${token}`;
 
   // Choose the appropriate link based on environment

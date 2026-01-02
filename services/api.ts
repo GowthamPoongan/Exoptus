@@ -5,9 +5,10 @@
  * Handles authentication, request/response intercepting, and error handling.
  */
 
-// Use your computer's IP address for mobile testing
-// Change this to your actual IP (run: ipconfig | Select-String "IPv4")
-const DEV_API_URL = "http://10.175.216.47:3000";
+// For mobile device testing, you need to use your computer's IP address
+// To find your IP: Windows (ipconfig), Mac/Linux (ifconfig | grep inet)
+// Set EXPO_PUBLIC_API_URL environment variable to override this default
+const DEV_API_URL = "http://localhost:3000";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || DEV_API_URL;
 
