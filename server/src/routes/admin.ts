@@ -17,12 +17,10 @@ const requireAdmin = (req: Request, res: Response, next: Function) => {
 
   // Require ADMIN_KEY to be set in environment variables
   if (!expectedKey) {
-    console.error(
-      "FATAL: ADMIN_KEY environment variable is not set. Admin routes are disabled for security."
-    );
+    console.error("ADMIN_KEY environment variable is not configured");
     return res.status(500).json({
       success: false,
-      error: "Admin authentication not configured",
+      error: "Service temporarily unavailable",
     });
   }
 
