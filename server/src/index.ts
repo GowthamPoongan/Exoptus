@@ -64,7 +64,7 @@ app.use(
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 EXOPTUS Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📱 Mobile access: http://10.175.216.47:${PORT}`);
+  console.log(`📱 Network access: http://0.0.0.0:${PORT}`);
 });
 
 export default app;

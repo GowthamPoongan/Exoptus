@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 async function seedAdmin() {
   console.log("🌱 Seeding admin users...");
 
-  // Default admin credentials
-  const adminEmail = "admin@exoptus.com";
-  const adminPassword = "admin123"; // Change this in production!
+  // Default admin credentials - CHANGE THESE IN PRODUCTION!
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@exoptus.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'changeme123';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   try {
