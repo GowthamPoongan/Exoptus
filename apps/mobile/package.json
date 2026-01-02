@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --host lan",
     "android": "expo run:android",
     "android:dev": "node ./start-android-dev.js",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "start:tunnel": "expo start --tunnel"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

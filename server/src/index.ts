@@ -8,14 +8,20 @@
  * - JWT session management
  */
 
+import dotenv from "dotenv";
+
+// Load environment variables first so imported modules see them
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
-
-// Load environment variables
-dotenv.config();
+import onboardingRoutes from "./routes/onboarding";
+import rolesRoutes from "./routes/roles";
+import jobsRoutes from "./routes/jobs";
+import adminRoutes from "./routes/admin";
+import adminAuthRoutes from "./routes/admin-auth";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -32,6 +38,11 @@ app.get("/health", (req, res) => {
 // Routes
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
+app.use("/onboarding", onboardingRoutes);
+app.use("/roles", rolesRoutes);
+app.use("/jobs", jobsRoutes);
+app.use("/admin", adminRoutes);
+app.use("/admin/auth", adminAuthRoutes);
 
 // Error handler
 app.use(

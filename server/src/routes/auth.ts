@@ -34,12 +34,13 @@ const router = Router();
 // ============================================
 const emailStartSchema = z.object({
   email: z.string().email("Invalid email address"),
+  source: z.string().optional(),
 });
 
 router.post("/email/start", async (req: Request, res: Response) => {
   try {
     // Validate input
-    const { email } = emailStartSchema.parse(req.body);
+    const { email, source } = emailStartSchema.parse(req.body);
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if user exists, create if not
@@ -98,16 +99,33 @@ router.post("/email/start", async (req: Request, res: Response) => {
       },
     });
 
-    // Send email
-    const emailSent = await sendMagicLinkEmail(normalizedEmail, token);
+    // Send email - include source (expo/dev/production) if provided
+    const emailSent = await sendMagicLinkEmail(normalizedEmail, token, source);
 
     if (!emailSent && process.env.NODE_ENV !== "development") {
       throw new Error("Failed to send verification email");
     }
 
+    // For development convenience, also return the generated links so testers can
+    // open them directly without needing the actual email delivery.
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
+    const devBuildLink = `exp://devbuild/${token}`; // placeholder for dev builds
+    const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
+      token
+    )}`;
+    const apiUrl = process.env.API_URL || "http://localhost:3000";
+    const webLink = `${apiUrl}/auth/verify-redirect?token=${encodeURIComponent(
+      token
+    )}${source ? `&source=${encodeURIComponent(source)}` : ""}`;
+
     res.json({
       message: "Verification email sent",
       email: normalizedEmail,
+      links: {
+        expoGoLink,
+        webLink,
+        devBuildLink,
+      },
     });
   } catch (error: any) {
     console.error("Email start error:", error);
@@ -258,48 +276,97 @@ router.get("/verify-redirect", async (req: Request, res: Response) => {
     `);
   }
 
-  // For development build (custom scheme with proper route)
-  const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
-
-  // For Expo Go development (needs /-- prefix)
+  // For Expo local dev server (Metro)
   const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
-  const expoGoLink = `${expoDevUrl}/--(auth)/verifying?token=${token}`;
 
-  // For production (standalone app with proper route)
+  // Build a nested dev-client link that some dev clients (expo-dev-client) accept.
+  // This uses the `exp+` scheme to ask the dev-client to open a nested URL.
+  const nestedTarget = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
+  const devClientLink = `exp+exoptus://expo-development-client/?url=${encodeURIComponent(
+    nestedTarget
+  )}`;
+
+  // Direct Expo Go link (uses /--/ prefix for expo-router)
+  const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
+
+  // Production standalone scheme
   const appUrl = process.env.APP_URL || "exoptus://";
-  const prodLink = `${appUrl}(auth)/verifying?token=${token}`;
+  const prodLink = `${appUrl}(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
 
-  // Use dev build link for development (works with exoptus:// custom scheme)
-  const deepLink =
-    process.env.NODE_ENV === "production" ? prodLink : devBuildLink;
+  // Prefer client indicated by query param `source` when present
+  const reqSource =
+    typeof req.query.source === "string" ? req.query.source : "";
+  let primaryLink =
+    process.env.NODE_ENV === "production" ? prodLink : devClientLink;
 
+  if (reqSource === "expo") {
+    primaryLink = expoGoLink;
+  } else if (reqSource === "dev") {
+    primaryLink = devClientLink;
+  }
+
+  // Render landing page that tries preferred client first, then falls back.
+  // If `source=expo` was provided, prefer Expo Go (exp://) which is more reliable for JS-only testing.
   res.send(`
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: system-ui; padding: 40px 20px; text-align: center; background: #f5f5f5; margin: 0; }
-          .card { background: white; padding: 40px 24px; border-radius: 16px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-          h1 { color: #0066FF; margin-bottom: 16px; }
-          .btn { display: inline-block; background: linear-gradient(135deg, #0066FF 0%, #3B82F6 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; margin: 16px 0; }
-          .btn:active { opacity: 0.9; }
-          .links { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; }
-          .link { display: block; color: #666; font-size: 14px; margin: 8px 0; word-break: break-all; }
+          body { font-family: system-ui; padding: 24px; text-align: center; background: #f5f5f5; margin: 0; }
+          .card { background: white; padding: 24px; border-radius: 12px; max-width: 420px; margin: 40px auto; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+          h1 { color: #0b61ff; margin-bottom: 8px; }
+          p { color: #444; margin-bottom: 16px; }
+          .btn { display: inline-block; background: linear-gradient(135deg, #0066FF 0%, #3B82F6 100%); color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; margin: 8px; }
+          .small { font-size: 13px; color: #666; }
+          .links { margin-top: 18px; padding-top: 12px; border-top: 1px solid #eee; }
+          .link { display: block; color: #666; font-size: 13px; margin: 6px 0; word-break: break-all; }
           code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
         </style>
+        <script>
+          // Try to open the preferred client repeatedly to increase reliability across browsers/email clients.
+          const primary = '${primaryLink}';
+          const alternate = primary === '${devClientLink}' ? '${expoGoLink}' : '${devClientLink}';
+          const expoInner = '${expoGoLink}';
+
+          function tryOpen(url) {
+            try {
+              // Use location assignment which works in most browsers and mobile webviews
+              window.location = url;
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          window.addEventListener('load', function() {
+            // First attempt: open the primary link immediately
+            tryOpen(primary);
+
+            // Second attempt: after 700ms try the inner Expo Go exp:// link directly
+            setTimeout(() => tryOpen(expoInner), 700);
+
+            // Final fallback: after 2500ms try the alternate link (dev client)
+            setTimeout(() => tryOpen(alternate), 2500);
+          });
+        </script>
       </head>
       <body>
         <div class="card">
-          <h1>✅ Verify Your Account</h1>
-          <p>Tap the button below to open the Exoptus app and complete verification.</p>
-          
-          <a href="${deepLink}" class="btn">Open Exoptus App</a>
-          
+          <h1>Verify your Exoptus account</h1>
+          <p class="small">We're opening the app for you. If nothing happens, tap a link below.</p>
+
+          <a href="${primaryLink}" class="btn">Open in Exoptus</a>
+
           <div class="links">
-            <p style="color: #999; font-size: 12px; margin-bottom: 12px;">If the button doesn't work, try these links:</p>
-            <a href="${devBuildLink}" class="link">📱 Dev Build: <code>exoptus://...</code></a>
-            <a href="${expoGoLink}" class="link">🔵 Expo Go: <code>exp://...</code></a>
-            <a href="${prodLink}" class="link">🚀 Production: <code>exoptus://...</code></a>
+            <p class="small">Manual options:</p>
+            <a href="${devClientLink}" class="link">📱 Open in Development Build (dev-client)</a>
+            <a href="${expoGoLink}" class="link">🔵 Open in Expo Go</a>
+            <a href="${prodLink}" class="link">🚀 Open in Production App</a>
           </div>
         </div>
       </body>
@@ -330,7 +397,9 @@ router.get("/google/start", (req: Request, res: Response) => {
   googleAuthUrl.searchParams.set("scope", "openid email profile");
   googleAuthUrl.searchParams.set("access_type", "offline");
   googleAuthUrl.searchParams.set("state", state);
-  googleAuthUrl.searchParams.set("prompt", "consent");
+  // Force the Google account chooser so users pick which account to use.
+  // Use `select_account` (optionally combined with `consent`) to ensure the chooser appears.
+  googleAuthUrl.searchParams.set("prompt", "select_account consent");
 
   console.log(`🔵 Starting Google OAuth, redirect_uri: ${redirectUri}`);
   res.redirect(googleAuthUrl.toString());

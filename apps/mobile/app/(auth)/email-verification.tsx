@@ -22,6 +22,7 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 import { useUserStore } from "../../store/userStore";
 import authService from "../../../../services/auth";
+import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -98,7 +99,9 @@ export default function EmailVerificationScreen() {
     if (resendDisabled || !email) return;
 
     try {
-      const result = await authService.sendMagicLink(email);
+      const ownership = (Constants as any).appOwnership || "";
+      const source = ownership === "expo" ? "expo" : "dev";
+      const result = await authService.sendMagicLink(email, source);
       if (result.success) {
         Alert.alert("Email Sent", "We've sent a new magic link to your email.");
       } else {

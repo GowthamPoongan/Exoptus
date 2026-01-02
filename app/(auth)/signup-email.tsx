@@ -111,8 +111,8 @@ export default function SignupEmailScreen() {
       // Save email locally first
       saveEmail(email);
 
-      // Call API to send magic link
-      const result = await authService.sendMagicLink(email);
+      // Call API to send magic link (web source)
+      const result = await authService.sendMagicLink(email, "web");
 
       if (result.success) {
         router.push("/(auth)/email-verification");

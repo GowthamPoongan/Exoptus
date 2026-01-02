@@ -54,46 +54,59 @@ export default function RootLayout() {
     };
   }, []);
 
-  const handleDeepLink = async (url: string) => {
-    console.log("📱 Deep link received:", url);
+  const handleDeepLink = async (rawUrl: string) => {
+    console.log("📱 Deep link received:", rawUrl);
 
-    // Parse the URL to extract params
+    // Some environments (expo dev client) wrap the real URL inside a query param
+    // e.g. exp+exoptus://expo-development-client/?url=https%3A%2F%2Fexample.com%2Fverify%3Ftoken%3Dabc
+    // Normalize by extracting nested `url` when present.
+    let url = rawUrl;
+    try {
+      const top = Linking.parse(rawUrl);
+      // If there's a nested `url` param, use that
+      if (top.queryParams && typeof top.queryParams.url === "string") {
+        url = decodeURIComponent(top.queryParams.url as string);
+        console.log("📱 Detected nested url, normalized to:", url);
+      }
+    } catch (e) {
+      // fall back to rawUrl
+    }
+
     const parsed = Linking.parse(url);
 
-    // If the app was opened with the custom scheme but no path (e.g. "exoptus:///" or "exoptus://"),
-    // expo-router may treat that as an unmatched route. Redirect directly to the welcome screen.
+    // If the app was opened with the custom scheme but no path (e.g. "exoptus://"),
+    // redirect to the welcome screen.
+    const scheme = parsed.scheme?.toLowerCase() || "";
     if (
-      (parsed.scheme &&
-        parsed.scheme.toLowerCase() === "exoptus" &&
-        (!parsed.path || parsed.path === "")) ||
+      (scheme.includes("exoptus") && (!parsed.path || parsed.path === "")) ||
       /^exoptus:\/\/*$/.test(url)
     ) {
       console.log("📱 Deep link with empty path — redirecting to welcome");
       router.replace("/(auth)/welcome");
       return;
     }
+
     console.log("📱 Parsed URL:", JSON.stringify(parsed, null, 2));
 
-    // Extract token from URL
+    // Robust token extraction
     let token: string | null = null;
     if (
       parsed.queryParams?.token &&
       typeof parsed.queryParams.token === "string"
     ) {
-      token = parsed.queryParams.token;
+      token = parsed.queryParams.token as string;
     }
-    if (!token && url.includes("token=")) {
-      const match = url.match(/token=([^&]+)/);
-      if (match) token = match[1];
+    if (!token) {
+      const m = url.match(/token=([^&]+)/);
+      if (m) token = m[1];
     }
 
     // Check for Google OAuth callback
     const isGoogleCallback =
-      parsed.path?.includes("google-callback") ||
+      (parsed.path && parsed.path.includes("google-callback")) ||
       url.includes("google-callback");
     if (isGoogleCallback && token) {
       console.log("📱 ✅ Google OAuth callback with token");
-      // Import and use auth service to handle the callback
       const authService = require("../../../services/auth").default;
       const { useUserStore } = require("../store/userStore");
 
@@ -115,16 +128,14 @@ export default function RootLayout() {
 
     // Check if this is a verify link (magic link)
     const isVerifyPath =
-      parsed.path?.includes("verify") || url.includes("/verify");
+      (parsed.path && parsed.path.includes("verify")) ||
+      url.includes("/verify");
     if (isVerifyPath && token) {
       console.log(
         "📱 ✅ Navigating to verify with token:",
         token.substring(0, 20) + "..."
       );
-      router.replace({
-        pathname: "/(auth)/verifying",
-        params: { token },
-      });
+      router.replace({ pathname: "/(auth)/verifying", params: { token } });
       return;
     }
 

@@ -25,22 +25,31 @@ const transporter = nodemailer.createTransport({
  */
 export async function sendMagicLinkEmail(
   email: string,
-  token: string
+  token: string,
+  source?: string
 ): Promise<boolean> {
   // For production: use custom scheme with proper route
   const appUrl = process.env.APP_URL || "exoptus://";
-  const prodLink = `${appUrl}(auth)/verifying?token=${token}`;
+  const prodLink = `${appUrl}(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
 
   // For development build: use custom scheme (not exp://)
-  const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
+  const devBuildLink = `exoptus://(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
 
   // For Expo Go development: use exp:// scheme with proper route
   const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
-  const expoGoLink = `${expoDevUrl}/--(auth)/verifying?token=${token}`;
+  const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
+    token
+  )}`;
 
-  // Web redirect for testing
+  // Web redirect for testing – include source if provided so the landing page can prefer a client
   const apiUrl = process.env.API_URL || "http://10.175.216.47:3000";
-  const webLink = `${apiUrl}/auth/verify-redirect?token=${token}`;
+  const webLink = `${apiUrl}/auth/verify-redirect?token=${encodeURIComponent(
+    token
+  )}${source ? `&source=${encodeURIComponent(source)}` : ""}`;
 
   // Choose the appropriate link based on environment
   // Use dev build link for development (exoptus://)
@@ -80,7 +89,7 @@ export async function sendMagicLinkEmail(
                       Click the button below to securely sign in to Exoptus. This link will expire in 15 minutes.
                     </p>
                     
-                    <!-- Button - Use web link which redirects to app (more reliable) -->
+                      <!-- Button - Use web link which redirects to app (more reliable) -->
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" style="padding: 8px 0;">
@@ -91,7 +100,7 @@ export async function sendMagicLinkEmail(
                       </tr>
                     </table>
                     
-                    <p style="margin: 24px 0 0 0; color: #9ca3af; font-size: 14px; text-align: center;">
+                      <p style="margin: 24px 0 0 0; color: #9ca3af; font-size: 14px; text-align: center;">
                       If the button doesn't work, copy this link:<br>
                       <a href="${webLink}" style="color: #0066FF; word-break: break-all;">${webLink}</a>
                     </p>
@@ -125,20 +134,21 @@ export async function sendMagicLinkEmail(
     console.log(`   🔵 Expo Go Link: ${expoGoLink}`);
     console.log(`   🚀 Production Link: ${prodLink}\n`);
 
-    // Try to send the actual email
+    // Try to send the actual email. Return true only if sendMail succeeded.
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       await transporter.sendMail(mailOptions);
       console.log("✅ Email sent successfully!\n");
+      return true;
     } else {
       console.log(
         "⚠️  SMTP not configured - email not sent (use links above for testing)\n"
       );
+      // Explicitly return false so callers can detect that no email was sent
+      return false;
     }
-
-    return true;
   } catch (error) {
     console.error("❌ Failed to send email:", error);
-    // Still return true so the flow continues - link is in console
-    return true;
+    // Indicate failure so upstream can react (e.g. surface an error in production)
+    return false;
   }
 }

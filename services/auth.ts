@@ -41,10 +41,12 @@ class AuthService {
    * Initiates email-based passwordless authentication
    */
   async sendMagicLink(
-    email: string
+    email: string,
+    source?: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await api.post<MagicLinkResponse>("/auth/email/start", {
       email,
+      source,
     });
 
     return {
@@ -61,24 +63,35 @@ class AuthService {
   async verifyMagicLink(
     token: string
   ): Promise<{ success: boolean; user?: User; error?: string }> {
-    const response = await api.post<any>("/auth/email/verify", {
-      token,
-    });
+    try {
+      const response = await api.post<any>("/auth/email/verify", {
+        token,
+      });
 
-    console.log(
-      "🔐 Verify response:",
-      JSON.stringify(response).substring(0, 300)
-    );
+      console.log("🔐 Verify response (full):", JSON.stringify(response));
 
-    // API wraps in { success, data } - backend also returns { success, data }
-    // So structure is: { success: true, data: { success: true, data: { token, user } } }
-    // OR backend returns directly: { success: true, data: { token, user } } where data has the auth response
+      // Try to find the auth payload in a few common shapes
+      // Possible shapes:
+      // 1) { success: true, data: { token, user, ... } }
+      // 2) { success: true, data: { success: true, data: { token, user } } }
+      // 3) { success: true, data: { data: { token, user } } }
+      const body = response.data;
 
-    if (response.success && response.data) {
-      // Check if backend wrapped in success/data or returned directly
-      const authData = response.data.data || response.data;
+      let authData: any = null;
 
-      if (authData.token && authData.user) {
+      if (!body) {
+        authData = null;
+      } else if (body.token && body.user) {
+        authData = body;
+      } else if (body.data && body.data.token && body.data.user) {
+        authData = body.data;
+      } else if (body.data && body.data.data) {
+        authData = body.data.data;
+      } else if (response.token && response.user) {
+        authData = response as any;
+      }
+
+      if (authData && authData.token && authData.user) {
         await this.setTokens(authData.token, authData.refreshToken);
         await this.cacheUser(authData.user);
         api.setAuthToken(authData.token);
@@ -88,12 +101,15 @@ class AuthService {
           user: authData.user,
         };
       }
-    }
 
-    return {
-      success: false,
-      error: response.error || response.data?.error || "Verification failed",
-    };
+      // If we reach here, verification did not return expected payload
+      const errMsg =
+        response.error || response.data?.error || "Verification failed";
+      return { success: false, error: errMsg };
+    } catch (err: any) {
+      console.error("🔐 verifyMagicLink exception:", err);
+      return { success: false, error: err?.message || String(err) };
+    }
   }
 
   /**

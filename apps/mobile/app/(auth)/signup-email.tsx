@@ -27,6 +27,7 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 import { useUserStore } from "../../store/userStore";
 import authService from "../../../../services/auth";
+import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -111,8 +112,12 @@ export default function SignupEmailScreen() {
       // Save email locally first
       saveEmail(email);
 
-      // Call API to send magic link
-      const result = await authService.sendMagicLink(email);
+      // Detect client source (expo vs dev build)
+      const ownership = (Constants as any).appOwnership || "";
+      const source = ownership === "expo" ? "expo" : "dev";
+
+      // Call API to send magic link with source hint
+      const result = await authService.sendMagicLink(email, source);
 
       if (result.success) {
         router.push("/(auth)/email-verification");

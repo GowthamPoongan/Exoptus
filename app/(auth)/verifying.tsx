@@ -278,7 +278,7 @@ export default function VerifyingScreen() {
 
       const result = await authService.verifyMagicLink(params.token);
 
-      console.log("🔐 Verification result:", result.success, result.error);
+      console.log("🔐 Verification result:", result);
 
       // Cache the result
       if (result.success && result.user) {
@@ -298,10 +298,7 @@ export default function VerifyingScreen() {
         buttonOpacity.value = withDelay(1200, withTiming(1, { duration: 400 }));
         buttonScale.value = withDelay(1200, withSpring(1, { damping: 10 }));
 
-        // Auto-redirect after 10 seconds
-        setTimeout(() => {
-          router.replace(route);
-        }, 10000);
+        // User must click Continue button to proceed (no auto-redirect)
       } else {
         cachedVerificationResult = {
           success: false,
@@ -310,14 +307,18 @@ export default function VerifyingScreen() {
         };
         isVerificationInProgress = false;
 
+        // Show more helpful error info in the UI
         setState("error");
-        setErrorMessage(cachedVerificationResult.error!);
+        setErrorMessage(
+          (cachedVerificationResult.error || "Verification failed") +
+            (result?.debug ? ` — ${result.debug}` : "")
+        );
       }
     } catch (error: any) {
       console.log("❌ Verification error:", error);
       cachedVerificationResult = {
         success: false,
-        error: "Something went wrong. Please try again.",
+        error: error?.message || "Something went wrong. Please try again.",
       };
       isVerificationInProgress = false;
 

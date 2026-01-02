@@ -98,7 +98,7 @@ export default function EmailVerificationScreen() {
     if (resendDisabled || !email) return;
 
     try {
-      const result = await authService.sendMagicLink(email);
+      const result = await authService.sendMagicLink(email, "web");
       if (result.success) {
         Alert.alert("Email Sent", "We've sent a new magic link to your email.");
       } else {
