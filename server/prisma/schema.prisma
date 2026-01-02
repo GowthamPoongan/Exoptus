@@ -54,7 +54,6 @@ model User {
   onboardingProfile OnboardingProfile?
   userFeedback     UserFeedback[]
   profile          Profile?
-  careerAnalysis   CareerAnalysis?
 
   @@map("users")
 }
@@ -205,6 +204,7 @@ model UserFeedback {
   @@index([createdAt])
   @@map("user_feedback")
 }
+<<<<<<< HEAD
 
 // ============================================
 // CAREER ANALYSIS TABLE - JR Score & Results
@@ -388,3 +388,5 @@ model AdminLog {
   @@index([createdAt])
   @@map("admin_logs")
 }
+=======
+>>>>>>> origin/main

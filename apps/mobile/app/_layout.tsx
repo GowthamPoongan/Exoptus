@@ -74,18 +74,18 @@ export default function RootLayout() {
 
     const parsed = Linking.parse(url);
 
-    // If the app was opened with the custom scheme but no path (e.g. "exoptus://"),
-    // redirect to the welcome screen.
-    const scheme = parsed.scheme?.toLowerCase() || "";
+    // If the app was opened with the custom scheme but no path (e.g. "exoptus:///" or "exoptus://"),
+    // expo-router may treat that as an unmatched route. Redirect directly to the welcome screen.
     if (
-      (scheme.includes("exoptus") && (!parsed.path || parsed.path === "")) ||
+      (parsed.scheme &&
+        parsed.scheme.toLowerCase() === "exoptus" &&
+        (!parsed.path || parsed.path === "")) ||
       /^exoptus:\/\/*$/.test(url)
     ) {
       console.log("📱 Deep link with empty path — redirecting to welcome");
       router.replace("/(auth)/welcome");
       return;
     }
-
     console.log("📱 Parsed URL:", JSON.stringify(parsed, null, 2));
 
     // Robust token extraction
@@ -107,6 +107,7 @@ export default function RootLayout() {
       url.includes("google-callback");
     if (isGoogleCallback && token) {
       console.log("📱 ✅ Google OAuth callback with token");
+      // Import and use auth service to handle the callback
       const authService = require("../../../services/auth").default;
       const { useUserStore } = require("../store/userStore");
 

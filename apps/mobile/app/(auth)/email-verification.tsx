@@ -22,7 +22,6 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 import { useUserStore } from "../../store/userStore";
 import authService from "../../../../services/auth";
-import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 

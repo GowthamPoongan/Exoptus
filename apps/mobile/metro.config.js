@@ -26,6 +26,8 @@ config.resolver.blockList = [
   /android[/\\]build[/\\].*/,
   /android[/\\]app[/\\]build[/\\].*/,
   /android[/\\]\.gradle[/\\].*/,
+  // Exclude .mjs files from bundling (they use import.meta which isn't supported in CommonJS)
+  /\.mjs$/,
 ];
 
 module.exports = config;
