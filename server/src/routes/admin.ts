@@ -13,8 +13,18 @@ const prisma = new PrismaClient();
 // Simple admin auth middleware (in production, use proper JWT with role)
 const requireAdmin = (req: Request, res: Response, next: Function) => {
   const adminKey = req.headers["x-admin-key"];
-  const expectedKey =
-    process.env.ADMIN_KEY || "admin-secret-key-change-in-prod";
+  const expectedKey = process.env.ADMIN_KEY;
+
+  // Require ADMIN_KEY to be set in environment variables
+  if (!expectedKey) {
+    console.error(
+      "FATAL: ADMIN_KEY environment variable is not set. Admin routes are disabled for security."
+    );
+    return res.status(500).json({
+      success: false,
+      error: "Admin authentication not configured",
+    });
+  }
 
   if (adminKey !== expectedKey) {
     return res.status(403).json({
