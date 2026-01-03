@@ -22,14 +22,25 @@
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "android:dev": "concurrently --kill-others \"npm:server\" \"npm:mobile-android\"",
     "server": "npm run dev -w exoptus-server",
-    "mobile-android": "expo start --android"
+    "mobile-android": "expo start --android",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "devDependencies": {
     "@types/react-native": "^0.72.8",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "expo-cli": "^6.3.0",
+    "@babel/core": "^7.20.0"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "expo": "~49.0.23",
+    "expo-splash-screen": "~0.20.5",
+    "expo-status-bar": "~1.6.0",
+    "react": "18.2.0",
+    "react-native": "0.72.10"
   }
 }

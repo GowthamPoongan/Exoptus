@@ -1,11 +1,11 @@
 /**
  * Onboarding Chat Flow Configuration
- * 
+ *
  * NOTE: This file contains extracted chat flow definitions from chat.tsx.
  * For Phase 1 stability, the chat.tsx file retains its own copy.
- * 
+ *
  * TODO (Phase 2): Migrate chat.tsx to use these imports.
- * 
+ *
  * Contains:
  * - CONVERSATION_FLOW: The conversation state machine
  * - ROLE_CARDS: Mock role card data
