@@ -49,22 +49,12 @@ router.post("/email/start", async (req: Request, res: Response) => {
         where: { email: normalizedEmail },
       });
     } catch (prismaErr) {
-      console.error(
-        "Prisma findUnique error (email/start):",
-        normalizedEmail,
-        prismaErr
-      );
       // Fallback: try findFirst in case of schema/client mismatch
       try {
         user = await prisma.user.findFirst({
           where: { email: normalizedEmail },
         });
       } catch (fallbackErr) {
-        console.error(
-          "Prisma findFirst fallback failed (email/start):",
-          normalizedEmail,
-          fallbackErr
-        );
         throw prismaErr;
       }
     }
@@ -82,7 +72,6 @@ router.post("/email/start", async (req: Request, res: Response) => {
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New user created: ${normalizedEmail}`);
     }
 
     // Generate magic link token
@@ -197,12 +186,6 @@ router.post("/email/verify", async (req: Request, res: Response) => {
       sessionId: session.id,
     });
 
-    console.log(
-      `✅ User verified: ${user.email} (onboarding: ${
-        user.onboardingCompleted ? "complete" : user.onboardingStep
-      })`
-    );
-
     // Get redirect path based on onboarding status
     const redirectPath = getRedirectPath(user);
 
@@ -262,7 +245,7 @@ router.get("/verify-redirect", async (req: Request, res: Response) => {
   const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
 
   // For Expo Go development (needs /--/ prefix and relative path)
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${token}`;
 
   // For production (standalone app with proper route)
@@ -332,7 +315,6 @@ router.get("/google/start", (req: Request, res: Response) => {
   googleAuthUrl.searchParams.set("state", state);
   googleAuthUrl.searchParams.set("prompt", "consent");
 
-  console.log(`🔵 Starting Google OAuth, redirect_uri: ${redirectUri}`);
   res.redirect(googleAuthUrl.toString());
 });
 
@@ -406,22 +388,12 @@ router.get("/google/callback", async (req: Request, res: Response) => {
         where: { email: normalizedEmail },
       });
     } catch (prismaErr) {
-      console.error(
-        "Prisma findUnique error (google):",
-        normalizedEmail,
-        prismaErr
-      );
       // Fallback: try findFirst in case of schema/client mismatch
       try {
         user = await prisma.user.findFirst({
           where: { email: normalizedEmail },
         });
       } catch (fallbackErr) {
-        console.error(
-          "Prisma findFirst fallback failed (google):",
-          normalizedEmail,
-          fallbackErr
-        );
         throw prismaErr;
       }
     }
@@ -442,7 +414,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New Google user created: ${normalizedEmail}`);
     } else if (!hasAuthProvider(user, "google")) {
       // ACCOUNT LINKING
       user = await addAuthProvider(user.id, "google", {
@@ -458,8 +429,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
         where: { id: user.id },
         data: updates,
       });
-
-      console.log(`🔗 Google account linked: ${normalizedEmail}`);
     } else {
       user = await prisma.user.update({
         where: { id: user.id },
@@ -469,7 +438,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
           lastLoginAt: new Date(),
         },
       });
-      console.log(`✅ Google user signed in: ${normalizedEmail}`);
     }
 
     // Create session
@@ -489,10 +457,8 @@ router.get("/google/callback", async (req: Request, res: Response) => {
       sessionId: session.id,
     });
 
-    console.log(`✅ Google OAuth complete: ${user.email}`);
-
     // Show success page with deep link to app (works from localhost on phone browser)
-    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
     const appScheme = process.env.APP_SCHEME || "exoptus";
 
     const expoLink = `${expoDevUrl}/--/google-callback?token=${jwtToken}&success=true`;
@@ -626,7 +592,7 @@ router.get("/google/callback", async (req: Request, res: Response) => {
 
 // Helper to get the app deep link URL
 function getAppDeepLink(customPath: string = ""): string {
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const appScheme = process.env.APP_SCHEME || "exoptus";
 
   // For development (Expo Go)
@@ -682,7 +648,6 @@ router.post("/google", async (req: Request, res: Response) => {
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New Google user created: ${normalizedEmail}`);
     } else if (!hasAuthProvider(user, "google")) {
       // ACCOUNT LINKING - User exists but signed up with email
       // Auto-link since Google verified the email
@@ -700,8 +665,6 @@ router.post("/google", async (req: Request, res: Response) => {
         where: { id: user.id },
         data: updates,
       });
-
-      console.log(`🔗 Google account linked: ${normalizedEmail}`);
     } else {
       // User already has Google linked - just update last login
       user = await prisma.user.update({
@@ -712,7 +675,6 @@ router.post("/google", async (req: Request, res: Response) => {
           lastLoginAt: new Date(),
         },
       });
-      console.log(`✅ Google user signed in: ${normalizedEmail}`);
     }
 
     // Create session
@@ -731,12 +693,6 @@ router.post("/google", async (req: Request, res: Response) => {
       email: user.email,
       sessionId: session.id,
     });
-
-    console.log(
-      `✅ Google auth complete: ${user.email} (onboarding: ${
-        user.onboardingCompleted ? "complete" : user.onboardingStep
-      })`
-    );
 
     // Get redirect path based on onboarding status
     const redirectPath = getRedirectPath(user);

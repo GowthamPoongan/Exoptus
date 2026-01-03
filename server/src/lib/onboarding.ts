@@ -70,12 +70,6 @@ export async function updateOnboardingProgress(
     data: updateData,
   });
 
-  console.log(
-    `📝 Onboarding progress: ${user.email} completed "${completedStep}" → ${
-      isComplete ? "✅ COMPLETE" : `next: "${nextStep}"`
-    }`
-  );
-
   return user;
 }
 
@@ -128,7 +122,6 @@ export async function addAuthProvider(
 
   // Check if provider already linked
   if (currentProviders.includes(provider)) {
-    console.log(`ℹ️  Provider "${provider}" already linked for ${user.email}`);
     return user;
   }
 
@@ -148,10 +141,6 @@ export async function addAuthProvider(
     where: { id: userId },
     data: updateData,
   });
-
-  console.log(
-    `🔗 Account linked: ${updatedUser.email} → added "${provider}" (now has: ${updatedProviders})`
-  );
 
   return updatedUser;
 }

@@ -64,18 +64,13 @@ class ApiService {
     const { method = "GET", headers, body } = config;
 
     try {
-      console.log(`📡 API Request: ${method} ${this.baseUrl}${endpoint}`);
-
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method,
         headers: this.getHeaders(headers),
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      console.log(`📡 API Response: ${response.status} ${response.statusText}`);
-
       const data = await response.json();
-      console.log(`📡 API Data:`, JSON.stringify(data).substring(0, 200));
 
       if (!response.ok) {
         return {
@@ -89,7 +84,6 @@ class ApiService {
         data,
       };
     } catch (error: any) {
-      console.error("❌ API Error:", error.message);
       return {
         success: false,
         error: "Network error. Please check your connection.",

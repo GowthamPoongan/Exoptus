@@ -39,9 +39,7 @@ try {
   isErrorWithCode = googleSignInModule.isErrorWithCode;
   googleSignInAvailable = true;
 } catch (e) {
-  console.log(
-    "⚠️ Google Sign-In native module not available (running in Expo Go?)"
-  );
+  // Google Sign-In native module not available (running in Expo Go)
 }
 
 const { width, height } = Dimensions.get("window");
@@ -94,9 +92,8 @@ export default function WelcomeScreen() {
           scopes: ["profile", "email"],
         });
         setIsGoogleConfigured(true);
-        console.log("✅ Google Sign-In configured");
       } catch (e) {
-        console.log("⚠️ Failed to configure Google Sign-In:", e);
+        // Failed to configure Google Sign-In
       }
     }
 
@@ -118,21 +115,16 @@ export default function WelcomeScreen() {
   // Handle successful Google sign-in
   const handleGoogleSignIn = async (idToken: string) => {
     try {
-      console.log("🔄 Sending ID token to backend...");
       const result = await authService.googleSignIn(idToken);
 
       if (result.success && result.user) {
-        console.log("✅ Google sign-in successful");
         setUser(result.user);
         const route = authService.getRouteForUser(result.user);
-        console.log("🚀 Navigating to:", route);
         router.replace(route);
       } else {
-        console.log("❌ Google sign-in failed:", result.error);
         Alert.alert("Sign In Failed", result.error || "Please try again");
       }
     } catch (error) {
-      console.error("❌ Error during sign in:", error);
       Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
@@ -160,7 +152,6 @@ export default function WelcomeScreen() {
     }
 
     setIsGoogleLoading(true);
-    console.log("🔵 Starting Native Google Sign-In...");
 
     try {
       // Check if Google Play Services are available (Android)
@@ -171,35 +162,28 @@ export default function WelcomeScreen() {
       // Sign in with native Google dialog - no browser, no redirects!
       const response = await GoogleSignin.signIn();
 
-      console.log("📱 Google Sign-In response:", response.type);
-
       if (isSuccessResponse(response)) {
         const { idToken } = response.data;
 
         if (idToken) {
-          console.log("✅ Got ID token from native sign-in");
           await handleGoogleSignIn(idToken);
         } else {
-          console.log("❌ No ID token received");
           Alert.alert(
             "Error",
             "Failed to get authentication token. Please try again."
           );
         }
       } else {
-        console.log("⚠️ Sign-in was cancelled or failed");
+        // Sign-in was cancelled or failed
       }
     } catch (error: any) {
-      console.error("❌ Google Sign-In error:", error);
-
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:
-            console.log("⚠️ User cancelled sign-in");
-            // Don't show alert for user cancellation
+            // User cancelled sign-in - don't show alert
             break;
           case statusCodes.IN_PROGRESS:
-            console.log("⚠️ Sign-in already in progress");
+            // Sign-in already in progress
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
             Alert.alert(

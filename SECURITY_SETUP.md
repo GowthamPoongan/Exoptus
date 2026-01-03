@@ -11,6 +11,7 @@ This guide explains how to properly configure sensitive credentials and remove h
 ### Server Configuration (`/server/.env`)
 
 **Copy the example file:**
+
 ```bash
 cd server
 cp .env.example .env
@@ -70,6 +71,7 @@ EXPO_PUBLIC_API_URL="http://192.168.1.100:3000"
 ## 2. Remove Sensitive Data from Code
 
 ### ✅ Already Fixed:
+
 - ❌ **Gmail credentials** → Now uses environment variables
 - ❌ **Google OAuth secrets** → Now uses environment variables
 - ❌ **Hardcoded IP addresses** → Now uses environment variables
@@ -78,17 +80,19 @@ EXPO_PUBLIC_API_URL="http://192.168.1.100:3000"
 ### 🔍 What Was Changed:
 
 **Before:**
+
 ```typescript
-const API_URL = "http://10.175.216.47:3000";  // ❌ Hardcoded IP
-const adminPassword = "admin123";  // ❌ Exposed password
-SMTP_USER="actual-email@gmail.com"  // ❌ Exposed in .env
+const API_URL = "http://10.175.216.47:3000"; // ❌ Hardcoded IP
+const adminPassword = "admin123"; // ❌ Exposed password
+SMTP_USER = "actual-email@gmail.com"; // ❌ Exposed in .env
 ```
 
 **After:**
+
 ```typescript
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";  // ✅
-const adminPassword = process.env.ADMIN_PASSWORD || "changeme123";  // ✅
-SMTP_USER="your-email@example.com"  // ✅ In .env.example only
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"; // ✅
+const adminPassword = process.env.ADMIN_PASSWORD || "changeme123"; // ✅
+SMTP_USER = "your-email@example.com"; // ✅ In .env.example only
 ```
 
 ---
@@ -96,16 +100,19 @@ SMTP_USER="your-email@example.com"  // ✅ In .env.example only
 ## 3. Generate Secure Secrets
 
 ### JWT Secret (Node.js)
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### Admin Key (PowerShell)
+
 ```powershell
 [Convert]::ToBase64String([guid]::NewGuid().ToByteArray())
 ```
 
 ### Admin Password (Online)
+
 Use: https://passwordsgenerator.net/ (min 16 chars)
 
 ---
@@ -134,17 +141,20 @@ Use: https://passwordsgenerator.net/ (min 16 chars)
 ## 6. Git Security Checklist
 
 ### ✅ Verify `.env` is NOT tracked:
+
 ```bash
 git status
 # Should NOT show server/.env or any .env files
 ```
 
 ### ✅ Files that ARE tracked (safe):
+
 - `.env.example` (no real credentials)
 - `README.md`
 - All source code (no secrets)
 
 ### ❌ Files that should NEVER be committed:
+
 - `.env` (real credentials)
 - `*.pem` (SSL certificates)
 - `*.key` (private keys)
@@ -174,12 +184,14 @@ git status
 ### Find Your Local IP:
 
 **Windows:**
+
 ```bash
 ipconfig
 # Look for "IPv4 Address" under your network adapter
 ```
 
 **Mac/Linux:**
+
 ```bash
 ifconfig
 # Look for "inet" under your network interface
@@ -200,21 +212,25 @@ EXPO_DEV_URL="exp://192.168.1.100:8081"
 ## 9. Security Best Practices
 
 ### 🔐 Password Requirements:
+
 - Admin password: Min 16 characters, mixed case, numbers, symbols
 - JWT secret: Min 32 characters, random string
 - Admin key: UUID or base64 encoded random bytes
 
 ### 🛡️ Access Control:
+
 - Admin dashboard: Require admin key + session token
 - API endpoints: JWT token validation
 - OAuth: Validate state parameter
 
 ### 📝 Logging:
+
 - Log all admin actions (already implemented in AdminLog table)
 - Monitor failed login attempts
 - Track API rate limits
 
 ### 🔄 Regular Maintenance:
+
 - Rotate secrets every 90 days
 - Update dependencies monthly
 - Review audit logs weekly
@@ -227,6 +243,7 @@ EXPO_DEV_URL="exp://192.168.1.100:8081"
 ### If Credentials Are Exposed:
 
 1. **Immediate Actions:**
+
    ```bash
    # Revoke OAuth credentials in Google Console
    # Change all passwords immediately
@@ -235,12 +252,13 @@ EXPO_DEV_URL="exp://192.168.1.100:8081"
    ```
 
 2. **Clean Git History:**
+
    ```bash
    # Remove .env from git history
    git filter-branch --force --index-filter \
      "git rm --cached --ignore-unmatch server/.env" \
      --prune-empty --tag-name-filter cat -- --all
-   
+
    # Force push (use with caution!)
    git push origin --force --all
    ```
@@ -261,4 +279,4 @@ If you discover a security vulnerability, please email: security@exoptus.com
 
 ---
 
-*Last Updated: January 2, 2026*
+_Last Updated: January 2, 2026_

@@ -215,8 +215,6 @@ router.patch(
         data: updateData,
       });
 
-      console.log(`📝 Onboarding updated: ${user.email} → ${status}`);
-
       res.json({
         success: true,
         data: {

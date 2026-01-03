@@ -65,11 +65,6 @@ class AuthService {
       token,
     });
 
-    console.log(
-      "🔐 Verify response:",
-      JSON.stringify(response).substring(0, 300)
-    );
-
     // API wraps in { success, data } - backend also returns { success, data }
     // So structure is: { success: true, data: { success: true, data: { token, user } } }
     // OR backend returns directly: { success: true, data: { token, user } } where data has the auth response
@@ -113,11 +108,6 @@ class AuthService {
       idToken,
     });
 
-    console.log(
-      "🔍 Google sign-in raw response:",
-      JSON.stringify(response).substring(0, 500)
-    );
-
     // Handle new nested response structure: { success: true, data: { token, user, redirectTo, isReturningUser } }
     if (response.success && response.data?.data) {
       const authData = response.data.data;
@@ -127,12 +117,6 @@ class AuthService {
 
       const isReturning =
         authData.isReturningUser || this.hasOnboardingData(authData.user);
-      console.log("👤 isReturningUser from backend:", authData.isReturningUser);
-      console.log(
-        "👤 hasOnboardingData check:",
-        this.hasOnboardingData(authData.user)
-      );
-      console.log("👤 Final isReturningUser:", isReturning);
 
       return {
         success: true,
@@ -227,7 +211,6 @@ class AuthService {
         error: "Failed to get user session",
       };
     } catch (error) {
-      console.error("handleGoogleCallback error:", error);
       return {
         success: false,
         error: "Failed to complete sign-in",
@@ -359,7 +342,6 @@ class AuthService {
   // Token management helpers
   private async setTokens(token: string, refreshToken?: string): Promise<void> {
     if (!token) {
-      console.error("❌ Cannot save undefined token");
       return;
     }
     await AsyncStorage.setItem(TOKEN_KEY, token);

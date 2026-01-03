@@ -40,13 +40,13 @@ export async function sendMagicLinkEmail(
   )}`;
 
   // For Expo Go development: use exp:// scheme with proper route
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${encodeURIComponent(
     token
   )}`;
 
   // Web redirect for testing – include source if provided so the landing page can prefer a client
-  const apiUrl = process.env.API_URL || "http://10.175.216.47:3000";
+  const apiUrl = process.env.API_URL || "http://localhost:3000";
   const webLink = `${apiUrl}/auth/verify-redirect?token=${encodeURIComponent(
     token
   )}${source ? `&source=${encodeURIComponent(source)}` : ""}`;
@@ -126,29 +126,16 @@ export async function sendMagicLinkEmail(
   };
 
   try {
-    // Always log the magic link for debugging
-    console.log("\n📧 Magic Link Email:");
-    console.log(`   To: ${email}`);
-    console.log(`   � Dev Build Link: ${devBuildLink}`);
-    console.log(`   🌐 Web Link: ${webLink}`);
-    console.log(`   🔵 Expo Go Link: ${expoGoLink}`);
-    console.log(`   🚀 Production Link: ${prodLink}\n`);
-
     // Try to send the actual email. Return true only if sendMail succeeded.
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       await transporter.sendMail(mailOptions);
-      console.log("✅ Email sent successfully!\n");
       return true;
     } else {
-      console.log(
-        "⚠️  SMTP not configured - email not sent (use links above for testing)\n"
-      );
-      // Explicitly return false so callers can detect that no email was sent
+      // SMTP not configured - email not sent (dev mode: use app deep links)
       return false;
     }
   } catch (error) {
-    console.error("❌ Failed to send email:", error);
-    // Indicate failure so upstream can react (e.g. surface an error in production)
+    // Email sending failed
     return false;
   }
 }

@@ -3,28 +3,26 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/mobile",
     "apps/web-dashboard",
-    "server",
-    "services/*",
-    "packages/*"
+    "server"
   ],
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:mobile\" \"npm run dev:admin\" \"npm run dev:server\"",
-    "dev:mobile": "npm run start -w @exoptus/mobile",
+    "dev:mobile": "expo start",
     "dev:admin": "npm run dev -w exoptus-admin-dashboard",
-    "dev:server": "npm run dev -w @exoptus/auth-service",
+    "dev:server": "npm run dev -w exoptus-server",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "db:migrate": "npm run db:migrate -w @exoptus/auth-service",
-    "db:studio": "npm run db:studio -w @exoptus/auth-service",
-    "db:push": "npm run db:push -w @exoptus/auth-service",
+    "db:migrate": "npm run db:migrate -w exoptus-server",
+    "db:studio": "npm run db:studio -w exoptus-server",
+    "db:push": "npm run db:push -w exoptus-server",
+    "db:generate": "npm run db:generate -w exoptus-server",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
-    "android:dev": "concurrently --kill-others \"npm:auth-server\" \"npm:mobile-android-dev\"",
-    "auth-server": "npm run dev -w @exoptus/auth-service",
-    "mobile-android-dev": "npm run android:dev -w @exoptus/mobile"
+    "android:dev": "concurrently --kill-others \"npm:server\" \"npm:mobile-android\"",
+    "server": "npm run dev -w exoptus-server",
+    "mobile-android": "expo start --android"
   },
   "devDependencies": {
     "@types/react-native": "^0.72.8",

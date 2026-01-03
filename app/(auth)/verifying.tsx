@@ -263,7 +263,6 @@ export default function VerifyingScreen() {
   const verifyToken = async () => {
     try {
       if (!params.token) {
-        console.log("❌ No token in params:", params);
         cachedVerificationResult = {
           success: false,
           error: "Invalid verification link. Please request a new magic link.",
@@ -274,11 +273,7 @@ export default function VerifyingScreen() {
         return;
       }
 
-      console.log("🔐 Verifying token:", params.token.substring(0, 20) + "...");
-
       const result = await authService.verifyMagicLink(params.token);
-
-      console.log("🔐 Verification result:", result);
 
       // Cache the result
       if (result.success && result.user) {
@@ -315,7 +310,6 @@ export default function VerifyingScreen() {
         );
       }
     } catch (error: any) {
-      console.log("❌ Verification error:", error);
       cachedVerificationResult = {
         success: false,
         error: error?.message || "Something went wrong. Please try again.",
@@ -337,10 +331,6 @@ export default function VerifyingScreen() {
 
     // CASE 1: Already have cached result (from previous mount)
     if (cachedVerificationResult) {
-      console.log(
-        "📦 Using cached verification result:",
-        cachedVerificationResult.success
-      );
       if (cachedVerificationResult.success && cachedVerificationResult.user) {
         setUser(cachedVerificationResult.user);
         setState("verified");
@@ -358,7 +348,6 @@ export default function VerifyingScreen() {
 
     // CASE 2: Another mount is already verifying - wait for it
     if (isVerificationInProgress) {
-      console.log("⏳ Verification already in progress, waiting...");
       // Poll for cached result
       const pollInterval = setInterval(() => {
         if (cachedVerificationResult) {
@@ -394,7 +383,6 @@ export default function VerifyingScreen() {
 
     // CASE 3: First mount - start verification
     isVerificationInProgress = true;
-    console.log("🚀 Starting verification...");
     verifyToken();
   }, [params.token]);
 
