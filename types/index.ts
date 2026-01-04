@@ -42,6 +42,12 @@ export interface User {
   avatar?: string;
   emailVerified: boolean;
 
+  // Profile data (from /me endpoint)
+  college?: string | null;
+  course?: string | null;
+  year?: number | null;
+  goals?: string[];
+
   // Multi-provider auth support (matches Prisma - comma-separated string in DB, but exposed as string or parsed)
   authProviders?: string; // Comma-separated: "email,google" (matches Prisma String type)
   createdWith?: AuthProvider;
@@ -54,6 +60,10 @@ export interface User {
 
   // Legacy field (for backward compatibility with existing code)
   onboardingStatus: OnboardingStatus;
+
+  // Career data
+  jrScore?: number | null;
+  topRole?: string | null;
 
   createdAt?: string;
   updatedAt?: string;
@@ -113,4 +123,8 @@ export interface CareerAnalysis {
   focusAreas: string[];
   readinessTimeline: string;
   generatedAt: string;
+  // Phase 3: Real analysis data from backend
+  jrScore?: number;
+  topRole?: string;
+  topRoleMatch?: number;
 }

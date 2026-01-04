@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { checkGeminiHealth, isGeminiConfigured } from "../lib/gemini";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -525,5 +526,132 @@ router.get(
     }
   }
 );
+
+/**
+ * GET /admin/ai/health
+ * Check Gemini AI service health and availability
+ * Use for monitoring and debugging AI scoring
+ */
+router.get("/ai/health", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const configured = isGeminiConfigured();
+
+    if (!configured) {
+      return res.json({
+        success: true,
+        data: {
+          gemini: {
+            configured: false,
+            available: false,
+            message: "GEMINI_API_KEY not set - using fallback scoring",
+          },
+          scoringMode: "fallback",
+        },
+      });
+    }
+
+    // Run health check
+    const healthResult = await checkGeminiHealth();
+
+    res.json({
+      success: true,
+      data: {
+        gemini: {
+          configured: true,
+          available: healthResult.available,
+          latencyMs: healthResult.latencyMs,
+          error: healthResult.error,
+        },
+        scoringMode: healthResult.available ? "gemini" : "fallback",
+        recommendation: healthResult.available
+          ? "AI scoring is operational"
+          : "AI scoring will fall back to deterministic algorithm",
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /admin/ai/stats
+ * Get statistics about AI-generated vs fallback JR scores
+ */
+router.get("/ai/stats", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Count scores by source
+    const [geminiScores, fallbackScores, cachedScores, totalScores] =
+      await Promise.all([
+        prisma.careerAnalysis.count({
+          where: { jrSource: "gemini" },
+        }),
+        prisma.careerAnalysis.count({
+          where: { jrSource: "fallback" },
+        }),
+        prisma.careerAnalysis.count({
+          where: { jrSource: "cached" },
+        }),
+        prisma.careerAnalysis.count(),
+      ]);
+
+    // Average scores by source
+    const [geminiAvg, fallbackAvg] = await Promise.all([
+      prisma.careerAnalysis.aggregate({
+        where: { jrSource: "gemini" },
+        _avg: { jrScore: true },
+      }),
+      prisma.careerAnalysis.aggregate({
+        where: { jrSource: "fallback" },
+        _avg: { jrScore: true },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalScores,
+        bySource: {
+          gemini: {
+            count: geminiScores,
+            percentage:
+              totalScores > 0
+                ? Math.round((geminiScores / totalScores) * 100)
+                : 0,
+            averageScore: geminiAvg._avg?.jrScore || 0,
+          },
+          fallback: {
+            count: fallbackScores,
+            percentage:
+              totalScores > 0
+                ? Math.round((fallbackScores / totalScores) * 100)
+                : 0,
+            averageScore: fallbackAvg._avg?.jrScore || 0,
+          },
+          cached: {
+            count: cachedScores,
+            percentage:
+              totalScores > 0
+                ? Math.round((cachedScores / totalScores) * 100)
+                : 0,
+          },
+        },
+        health: {
+          geminiConfigured: isGeminiConfigured(),
+          recommendedAction: !isGeminiConfigured()
+            ? "Set GEMINI_API_KEY to enable AI scoring"
+            : "AI scoring operational",
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 export default router;

@@ -22,6 +22,8 @@ import rolesRoutes from "./routes/roles";
 import jobsRoutes from "./routes/jobs";
 import adminRoutes from "./routes/admin";
 import adminAuthRoutes from "./routes/admin-auth";
+import communityRoutes from "./routes/community";
+import dashboardRoutes from "./routes/dashboard";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -43,6 +45,8 @@ app.use("/roles", rolesRoutes);
 app.use("/jobs", jobsRoutes);
 app.use("/admin", adminRoutes);
 app.use("/admin/auth", adminAuthRoutes);
+app.use("/community", communityRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 // Error handler
 app.use(

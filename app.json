@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "exoptus",
+    "slug": "exoptus",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "exoptus",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A8C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.exoptus.app"
+    },
+    "android": {
+      "package": "com.exoptus.exoptus",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#1B3A8C"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "@react-native-google-signin/google-signin",
+      "expo-web-browser"
+    ]
+  }
+}

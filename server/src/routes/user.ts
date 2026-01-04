@@ -55,6 +55,88 @@ const authMiddleware = async (
 };
 
 // ============================================
+// GET /me - Identity Hydration Endpoint
+// ============================================
+// Returns essential user data for app initialization
+// This is the single source of truth for "who is this user"
+router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    // Fetch user with profile and career analysis
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        careerAnalysis: true,
+        onboardingProfile: {
+          select: {
+            name: true,
+            college: true,
+            course: true,
+            careerAspiration: true,
+            selectedRoleName: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Prefer profile data, fallback to onboarding data, then user data
+    const name =
+      user.profile?.name ||
+      user.onboardingProfile?.name ||
+      user.name ||
+      null;
+
+    const college =
+      user.profile?.college || user.onboardingProfile?.college || null;
+
+    const course =
+      user.profile?.course || user.onboardingProfile?.course || null;
+
+    const goals = user.profile?.goals
+      ? JSON.parse(user.profile.goals)
+      : user.onboardingProfile?.careerAspiration
+      ? [user.onboardingProfile.careerAspiration]
+      : [];
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        name,
+        avatar: user.avatar,
+        college,
+        course,
+        year: user.profile?.year || null,
+        goals,
+        jrScore: user.careerAnalysis?.jrScore ?? user.jrScore ?? 0,
+        topRole:
+          user.careerAnalysis?.topRole ||
+          user.onboardingProfile?.selectedRoleName ||
+          null,
+        onboardingCompleted: user.onboardingCompleted,
+        emailVerified: user.emailVerified,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Error in /me:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch user data",
+    });
+  }
+});
+
+// ============================================
 // GET PROFILE
 // ============================================
 router.get(
@@ -94,6 +176,69 @@ router.get(
       res.status(500).json({
         success: false,
         error: "Failed to get profile",
+      });
+    }
+  }
+);
+
+// ============================================
+// GET DASHBOARD - PHASE 3: Minimal user dashboard data
+// ============================================
+// Returns: jrScore, topRole, profileCompletion
+// This proves frontend → backend → database → frontend data flow
+router.get(
+  "/dashboard",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.userId;
+
+      // Get career analysis for JR Score and top role
+      const analysis = await prisma.careerAnalysis.findUnique({
+        where: { userId },
+      });
+
+      // Get onboarding profile to calculate completion
+      const profile = await prisma.onboardingProfile.findUnique({
+        where: { userId },
+      });
+
+      // Calculate profile completion percentage
+      const profileFields = [
+        profile?.name,
+        profile?.gender,
+        profile?.age,
+        profile?.state,
+        profile?.city,
+        profile?.status,
+        profile?.college || profile?.status === "Working",
+        profile?.course || profile?.status === "Working",
+        profile?.subjects,
+        profile?.careerAspiration,
+        profile?.selectedRoleName,
+      ];
+      const completedFields = profileFields.filter(Boolean).length;
+      const profileCompletion =
+        Math.round((completedFields / profileFields.length) * 100) / 100;
+
+      res.json({
+        success: true,
+        data: {
+          jrScore: analysis?.jrScore ?? 0,
+          topRole: analysis?.topRole ?? null,
+          topRoleMatch: analysis?.topRoleMatch ?? null,
+          profileCompletion,
+          missingSkills: analysis?.missingSkills
+            ? JSON.parse(analysis.missingSkills)
+            : [],
+          estimatedMonths: analysis?.estimatedMonths ?? null,
+        },
+      });
+    } catch (error: any) {
+      console.error("❌ Error fetching user dashboard:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get dashboard data",
       });
     }
   }

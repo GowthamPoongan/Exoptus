@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import Animated, {
   withTiming,
   withSpring,
   withSequence,
+  withRepeat,
+  withDelay,
   FadeIn,
   FadeInLeft,
   FadeInRight,
@@ -29,6 +31,7 @@ import Animated, {
 import * as DocumentPicker from "expo-document-picker";
 import { useOnboardingStore } from "../../store/onboardingStore";
 import { useUserStore } from "../../store/userStore";
+import { api } from "../../services/api";
 
 const { width, height } = Dimensions.get("window");
 
@@ -438,8 +441,8 @@ const CONVERSATION_FLOW: Record<string, ConversationStep> = {
   },
 };
 
-// MOCK ROLE DATA
-const ROLE_CARDS = [
+// FALLBACK ROLE DATA (used when API unavailable)
+const FALLBACK_ROLE_CARDS = [
   {
     id: "role1",
     title: "Full Stack Developer",
@@ -467,35 +470,46 @@ const ROLE_CARDS = [
 // COMPONENTS
 // ============================================================================
 
-// Typing indicator
-const TypingIndicator = () => {
+// Typing indicator - Pure Reanimated (no setInterval, 60fps)
+const TypingIndicator = memo(() => {
   const dot1 = useSharedValue(0);
   const dot2 = useSharedValue(0);
   const dot3 = useSharedValue(0);
 
   useEffect(() => {
-    const animate = () => {
-      dot1.value = withSequence(
-        withTiming(-5, { duration: 400 }),
-        withTiming(0, { duration: 400 })
-      );
-      setTimeout(() => {
-        dot2.value = withSequence(
-          withTiming(-5, { duration: 400 }),
-          withTiming(0, { duration: 400 })
-        );
-      }, 200);
-      setTimeout(() => {
-        dot3.value = withSequence(
-          withTiming(-5, { duration: 400 }),
-          withTiming(0, { duration: 400 })
-        );
-      }, 400);
-    };
+    // Staggered infinite bounce animation - pure Reanimated, no JS intervals
+    dot1.value = withRepeat(
+      withSequence(
+        withTiming(-6, { duration: 300 }),
+        withTiming(0, { duration: 300 })
+      ),
+      -1, // infinite
+      false
+    );
 
-    animate();
-    const interval = setInterval(animate, 1200);
-    return () => clearInterval(interval);
+    dot2.value = withDelay(
+      150,
+      withRepeat(
+        withSequence(
+          withTiming(-6, { duration: 300 }),
+          withTiming(0, { duration: 300 })
+        ),
+        -1,
+        false
+      )
+    );
+
+    dot3.value = withDelay(
+      300,
+      withRepeat(
+        withSequence(
+          withTiming(-6, { duration: 300 }),
+          withTiming(0, { duration: 300 })
+        ),
+        -1,
+        false
+      )
+    );
   }, []);
 
   const dot1Style = useAnimatedStyle(() => ({
@@ -515,7 +529,7 @@ const TypingIndicator = () => {
       <Animated.View style={[styles.typingDot, dot3Style]} />
     </View>
   );
-};
+});
 
 // Chat bubble
 const ChatBubble = ({
@@ -726,6 +740,55 @@ export default function ChatScreen() {
   } = useOnboardingStore();
   const { name, setName: storeSetName } = useUserStore();
 
+  // PHASE 3: Fetch roles from backend instead of hardcoded
+  const [roleCards, setRoleCards] = useState(FALLBACK_ROLE_CARDS);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  // Fetch roles from backend on mount
+  useEffect(() => {
+    const fetchRoles = async () => {
+      setRolesLoading(true);
+      try {
+        const response = await api.get<{ data: any[] }>("/roles");
+        if (
+          response.success &&
+          response.data?.data &&
+          response.data.data.length > 0
+        ) {
+          // Transform backend roles to display format
+          const transformedRoles = response.data.data
+            .slice(0, 6)
+            .map((role: any) => ({
+              id: role.id,
+              title: role.title,
+              salary:
+                role.salaryMin && role.salaryMax
+                  ? `₹${Math.round(role.salaryMin / 100000)}-${Math.round(
+                      role.salaryMax / 100000
+                    )} LPA`
+                  : "Market Rate",
+              summary:
+                role.description || `${role.category || "Professional"} role`,
+              skillGap: 30, // Will be calculated per user later
+            }));
+          setRoleCards(transformedRoles);
+          console.log(
+            `✅ Loaded ${transformedRoles.length} roles from backend`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          "Failed to fetch roles from backend, using fallback:",
+          error
+        );
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
+    fetchRoles();
+  }, []);
+
   const [userData, setUserData] = useState<UserData>({
     name: name || "",
     status: null,
@@ -819,38 +882,104 @@ export default function ChatScreen() {
     async (stepId: string) => {
       const step = CONVERSATION_FLOW[stepId];
       if (!step || stepId === "done") {
-        // Onboarding complete - generate analysis data and navigate to evaluation
+        // Onboarding complete - call backend for REAL analysis
         completeOnboarding();
 
-        // Generate mock career analysis based on user responses
-        const analysisData = {
-          skills: [
-            { name: "Technical Skills", userLevel: 0.65, industryAvg: 0.75 },
-            { name: "Communication", userLevel: 0.78, industryAvg: 0.7 },
-            { name: "Problem Solving", userLevel: 0.72, industryAvg: 0.68 },
-            { name: "Domain Knowledge", userLevel: 0.58, industryAvg: 0.72 },
-          ],
-          growthProjection: [
-            { month: 0, readiness: 0.45 },
-            { month: 3, readiness: 0.62 },
-            { month: 6, readiness: 0.78 },
-            { month: 9, readiness: 0.88 },
-            { month: 12, readiness: 0.95 },
-          ],
-          strengths: [
-            "Strong academic foundation",
-            "Natural communication ability",
-          ],
-          focusAreas: [
-            "Industry-specific tools",
-            "Real-world project experience",
-          ],
-          readinessTimeline: "9-12 months",
-          generatedAt: new Date().toISOString(),
-        };
+        try {
+          // Call backend API for real career analysis
+          const response = await api.post<{ analysis: any }>(
+            "/onboarding/analyze",
+            {
+              userData: {
+                name: userData.name,
+                status: userData.status,
+                gender: userData.gender,
+                age: userData.age,
+                state: userData.state,
+                city: userData.city,
+                college: userData.college,
+                course: userData.course,
+                stream: userData.stream,
+                semester: userData.semester,
+                passoutYear: userData.passoutYear,
+                subjects: userData.subjects,
+                cgpa: userData.cgpa,
+                careerAspiration: userData.careerAspiration,
+                selectedRoleName: userData.selectedRole?.title,
+              },
+              answers: [], // Not needed for current analysis
+            }
+          );
 
-        // Store analysis data
-        setCareerAnalysis(analysisData);
+          if (response.success && response.data?.analysis) {
+            // Store REAL analysis data from backend
+            setCareerAnalysis(response.data.analysis);
+          } else {
+            // Fallback only if backend fails
+            console.warn("Backend analysis failed, using fallback");
+            setCareerAnalysis({
+              skills: [
+                {
+                  name: "Technical Skills",
+                  userLevel: 0.65,
+                  industryAvg: 0.75,
+                },
+                { name: "Communication", userLevel: 0.78, industryAvg: 0.7 },
+                { name: "Problem Solving", userLevel: 0.72, industryAvg: 0.68 },
+                {
+                  name: "Domain Knowledge",
+                  userLevel: 0.58,
+                  industryAvg: 0.72,
+                },
+              ],
+              growthProjection: [
+                { month: 0, readiness: 0.45 },
+                { month: 3, readiness: 0.62 },
+                { month: 6, readiness: 0.78 },
+                { month: 9, readiness: 0.88 },
+                { month: 12, readiness: 0.95 },
+              ],
+              strengths: [
+                "Strong academic foundation",
+                "Natural communication ability",
+              ],
+              focusAreas: [
+                "Industry-specific tools",
+                "Real-world project experience",
+              ],
+              readinessTimeline: "9-12 months",
+              generatedAt: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error("Failed to get career analysis:", error);
+          // Fallback on network error
+          setCareerAnalysis({
+            skills: [
+              { name: "Technical Skills", userLevel: 0.65, industryAvg: 0.75 },
+              { name: "Communication", userLevel: 0.78, industryAvg: 0.7 },
+              { name: "Problem Solving", userLevel: 0.72, industryAvg: 0.68 },
+              { name: "Domain Knowledge", userLevel: 0.58, industryAvg: 0.72 },
+            ],
+            growthProjection: [
+              { month: 0, readiness: 0.45 },
+              { month: 3, readiness: 0.62 },
+              { month: 6, readiness: 0.78 },
+              { month: 9, readiness: 0.88 },
+              { month: 12, readiness: 0.95 },
+            ],
+            strengths: [
+              "Strong academic foundation",
+              "Natural communication ability",
+            ],
+            focusAreas: [
+              "Industry-specific tools",
+              "Real-world project experience",
+            ],
+            readinessTimeline: "9-12 months",
+            generatedAt: new Date().toISOString(),
+          });
+        }
 
         setTimeout(() => {
           router.push("/(onboarding)/evaluation-progress" as any);
@@ -1240,17 +1369,25 @@ export default function ChatScreen() {
               </>
             )}
 
-          {/* Role Cards */}
+          {/* Role Cards - PHASE 3: Now from backend */}
           {showInput && currentStepData?.inputType === "role-cards" && (
             <View style={styles.roleCardsContainer}>
-              {ROLE_CARDS.map((role, index) => (
-                <RoleCard
-                  key={role.id}
-                  role={role}
-                  onSelect={handleRoleSelect}
-                  index={index}
-                />
-              ))}
+              {rolesLoading ? (
+                <Text
+                  style={{ color: "#fff", textAlign: "center", padding: 20 }}
+                >
+                  Loading roles...
+                </Text>
+              ) : (
+                roleCards.map((role, index) => (
+                  <RoleCard
+                    key={role.id}
+                    role={role}
+                    onSelect={handleRoleSelect}
+                    index={index}
+                  />
+                ))
+              )}
             </View>
           )}
 

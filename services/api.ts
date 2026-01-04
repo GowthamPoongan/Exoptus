@@ -3,6 +3,9 @@
  *
  * Central API client for backend communication.
  * Handles authentication, request/response intercepting, and error handling.
+ *
+ * PRODUCTION MODE: All requests go to actual backend.
+ * Authentication is REQUIRED - no bypasses.
  */
 
 // Use your computer's local network IP address for mobile testing
@@ -38,6 +41,11 @@ class ApiService {
   // Set auth token for authenticated requests
   setAuthToken(token: string | null) {
     this.authToken = token;
+  }
+
+  // Get base URL (for OAuth flows that need server URL)
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   // Build headers

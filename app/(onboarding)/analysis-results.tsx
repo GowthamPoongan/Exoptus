@@ -28,6 +28,7 @@ import Svg, {
   Stop,
   Circle,
 } from "react-native-svg";
+import { useOnboardingStore } from "../../store/onboardingStore";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 48;
@@ -41,10 +42,12 @@ const CARD_WIDTH = width - 48;
  * - Swipeable insight cards
  * - Professional glassmorphism design
  * - No fitness metaphors
+ *
+ * PHASE 3: Now consumes REAL data from onboarding store
  */
 
-// Skill comparison data
-const SKILL_CATEGORIES = [
+// Default skill categories (fallback if no store data)
+const DEFAULT_SKILL_CATEGORIES = [
   {
     title: "Core Technical Skills",
     skills: [
@@ -71,7 +74,7 @@ const SKILL_CATEGORIES = [
   },
 ];
 
-const GROWTH_DATA = [
+const DEFAULT_GROWTH_DATA = [
   { month: "Now", value: 45 },
   { month: "3m", value: 58 },
   { month: "6m", value: 72 },
@@ -86,6 +89,55 @@ export default function AnalysisResults() {
 
   const contentOpacity = useSharedValue(0);
   const graphProgress = useSharedValue(0);
+
+  // PHASE 3: Get REAL analysis data from store
+  const { careerAnalysis } = useOnboardingStore();
+
+  // Transform store data to display format
+  const SKILL_CATEGORIES = useMemo(() => {
+    if (!careerAnalysis?.skills || careerAnalysis.skills.length === 0) {
+      return DEFAULT_SKILL_CATEGORIES;
+    }
+
+    // Transform API skills into display format
+    return [
+      {
+        title: "Core Skills Analysis",
+        skills: careerAnalysis.skills.map((skill) => ({
+          name: skill.name,
+          you: Math.round(skill.userLevel * 100),
+          industry: Math.round(skill.industryAvg * 100),
+        })),
+      },
+    ];
+  }, [careerAnalysis]);
+
+  const GROWTH_DATA = useMemo(() => {
+    if (
+      !careerAnalysis?.growthProjection ||
+      careerAnalysis.growthProjection.length === 0
+    ) {
+      return DEFAULT_GROWTH_DATA;
+    }
+
+    // Transform API growth data into display format
+    const monthLabels = ["Now", "3m", "6m", "9m", "12m"];
+    return careerAnalysis.growthProjection.map((point, index) => ({
+      month: monthLabels[index] || `${point.month}m`,
+      value: Math.round(point.readiness * 100),
+    }));
+  }, [careerAnalysis]);
+
+  // Get insights from real data
+  const strengths =
+    careerAnalysis?.strengths?.join(", ") ||
+    "Communication, Problem Solving, Collaboration";
+  const focusAreas =
+    careerAnalysis?.focusAreas?.join(", ") ||
+    "System Design, Industry Knowledge, Leadership";
+  const jrScore = careerAnalysis?.jrScore ?? 45;
+  const topRole = careerAnalysis?.topRole || "Your Target Role";
+  const readinessTimeline = careerAnalysis?.readinessTimeline || "9-12 months";
 
   // Generate stars
   const stars = useMemo(() => {
@@ -229,15 +281,26 @@ export default function AnalysisResults() {
             />
             <Text style={styles.summaryTitle}>Key Insights</Text>
 
+            {/* JR Score - REAL from backend */}
+            <View style={styles.insightRow}>
+              <View style={styles.insightIcon}>
+                <Text style={styles.insightEmoji}>🏆</Text>
+              </View>
+              <View style={styles.insightText}>
+                <Text style={styles.insightLabel}>JR Score</Text>
+                <Text style={styles.insightValue}>
+                  {jrScore}/100 — {topRole}
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.insightRow}>
               <View style={styles.insightIcon}>
                 <Text style={styles.insightEmoji}>💎</Text>
               </View>
               <View style={styles.insightText}>
                 <Text style={styles.insightLabel}>Your Strengths</Text>
-                <Text style={styles.insightValue}>
-                  Communication, Problem Solving, Collaboration
-                </Text>
+                <Text style={styles.insightValue}>{strengths}</Text>
               </View>
             </View>
 
@@ -247,9 +310,7 @@ export default function AnalysisResults() {
               </View>
               <View style={styles.insightText}>
                 <Text style={styles.insightLabel}>Focus Areas</Text>
-                <Text style={styles.insightValue}>
-                  System Design, Industry Knowledge, Leadership
-                </Text>
+                <Text style={styles.insightValue}>{focusAreas}</Text>
               </View>
             </View>
 
@@ -258,10 +319,8 @@ export default function AnalysisResults() {
                 <Text style={styles.insightEmoji}>📈</Text>
               </View>
               <View style={styles.insightText}>
-                <Text style={styles.insightLabel}>Readiness Level</Text>
-                <Text style={styles.insightValue}>
-                  Emerging Professional — High Growth Potential
-                </Text>
+                <Text style={styles.insightLabel}>Timeline to Job Ready</Text>
+                <Text style={styles.insightValue}>{readinessTimeline}</Text>
               </View>
             </View>
           </View>
@@ -302,8 +361,8 @@ function GrowthGraph({
   data,
   progress,
 }: {
-  data: typeof GROWTH_DATA;
-  progress: Animated.SharedValue<number>;
+  data: { month: string; value: number }[];
+  progress: { value: number };
 }) {
   const graphWidth = width - 80;
   const graphHeight = 160;
@@ -384,7 +443,12 @@ function GrowthGraph({
 }
 
 // Skill Card Component
-function SkillCard({ category }: { category: (typeof SKILL_CATEGORIES)[0] }) {
+interface SkillCategory {
+  title: string;
+  skills: { name: string; you: number; industry: number }[];
+}
+
+function SkillCard({ category }: { category: SkillCategory }) {
   return (
     <View style={styles.skillCard}>
       <LinearGradient

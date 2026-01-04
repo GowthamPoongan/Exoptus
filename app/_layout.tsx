@@ -90,7 +90,10 @@ export default function RootLayout() {
 
     // Check if this is a verify link (magic link)
     const isVerifyPath =
-      parsed.path?.includes("verify") || url.includes("/verify");
+      parsed.path?.includes("verify") ||
+      parsed.path?.includes("email") ||
+      url.includes("/verify") ||
+      url.includes("auth/email");
     if (isVerifyPath && token) {
       router.replace({
         pathname: "/(auth)/verifying",

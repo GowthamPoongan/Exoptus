@@ -237,7 +237,12 @@ let cachedVerificationResult: {
 } | null = null;
 
 export default function VerifyingScreen() {
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{
+    token?: string; // Raw token (needs POST verification)
+    jwt?: string; // JWT token (already verified via GET)
+    redirectTo?: string; // Redirect path from server
+    user?: string; // User data JSON from server
+  }>();
   const [state, setState] = useState<VerifyState>(() => {
     // Restore state from cache if available
     if (cachedVerificationResult?.success) return "verified";
@@ -262,6 +267,41 @@ export default function VerifyingScreen() {
   // Verification function - can be called for retry
   const verifyToken = async () => {
     try {
+      // CASE A: JWT already provided (verified via GET endpoint)
+      // No need to call POST - server already verified & created session
+      if (params.jwt && params.user) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(params.user));
+          const route = params.redirectTo
+            ? decodeURIComponent(params.redirectTo)
+            : userData.onboardingStatus === "completed"
+            ? "/(main)/home"
+            : "/(onboarding)/chat";
+
+          // Store the JWT token for future API calls
+          await authService.storeToken(params.jwt);
+
+          cachedVerificationResult = { success: true, user: userData, route };
+          isVerificationInProgress = false;
+
+          setUser(userData);
+          setState("verified");
+          setUserRoute(route);
+
+          // Animate button entrance
+          buttonOpacity.value = withDelay(
+            1200,
+            withTiming(1, { duration: 400 })
+          );
+          buttonScale.value = withDelay(1200, withSpring(1, { damping: 10 }));
+          return;
+        } catch (parseError) {
+          console.error("Failed to parse user data from JWT flow:", parseError);
+          // Fall through to token verification as fallback
+        }
+      }
+
+      // CASE B: Raw token provided (needs POST verification)
       if (!params.token) {
         cachedVerificationResult = {
           success: false,

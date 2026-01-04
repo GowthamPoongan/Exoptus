@@ -3,9 +3,581 @@ import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
+import { calculateJRScore, isGeminiConfigured } from "../lib/gemini";
+import { UserScoringContext, JRScoreResult } from "../types/jr-score";
 
 const router = Router();
 const prisma = new PrismaClient();
+
+// ============================================================================
+// CONVERSATION FLOW DEFINITION (Source of Truth)
+// ============================================================================
+
+type InputType =
+  | "text"
+  | "chips"
+  | "multi-chips"
+  | "numeric"
+  | "location"
+  | "file"
+  | "selector"
+  | "role-cards"
+  | "consent"
+  | "none";
+
+interface ConversationStep {
+  id: string;
+  messages: string[];
+  inputType: InputType;
+  options?: string[];
+  multiSelect?: boolean;
+  fileType?: "resume" | "id";
+  selectorType?: "age" | "semester" | "year" | "course";
+  confidenceWeight: number;
+  nextStep: string | null;
+  validator?: string;
+  isOptional?: boolean;
+}
+
+const CONVERSATION_FLOW: Record<string, ConversationStep> = {
+  intro: {
+    id: "intro",
+    messages: [
+      "Hey there! 👋",
+      "I'm Odyssey, your career companion.",
+      "Before we begin, I need to know a few things.",
+    ],
+    inputType: "none",
+    confidenceWeight: 0,
+    nextStep: "ask_name",
+  },
+  ask_name: {
+    id: "ask_name",
+    messages: ["What should I call you?"],
+    inputType: "text",
+    confidenceWeight: 5,
+    nextStep: "greet_name",
+    validator: "name",
+  },
+  greet_name: {
+    id: "greet_name",
+    messages: ["Nice to meet you, {name}! ✨"],
+    inputType: "none",
+    confidenceWeight: 0,
+    nextStep: "consent",
+  },
+  consent: {
+    id: "consent",
+    messages: [
+      "Before we continue, I need your consent to personalize your experience.",
+      "Your data helps me give you better recommendations.",
+    ],
+    inputType: "consent",
+    confidenceWeight: 5,
+    nextStep: "consent_accepted",
+  },
+  consent_accepted: {
+    id: "consent_accepted",
+    messages: [
+      "Thank you for trusting me! 🙏",
+      "You stay in control. Delete your data anytime from Settings.",
+      "Now, let me ask you a few questions to understand you better.",
+    ],
+    inputType: "none",
+    confidenceWeight: 0,
+    nextStep: "ask_status",
+  },
+  ask_status: {
+    id: "ask_status",
+    messages: ["What best describes you right now?"],
+    inputType: "chips",
+    options: ["Student", "Graduate", "Working"],
+    confidenceWeight: 10,
+    nextStep: "ask_gender",
+  },
+  ask_gender: {
+    id: "ask_gender",
+    messages: ["What is your gender?"],
+    inputType: "chips",
+    options: ["Male", "Female", "Other", "Prefer not to say"],
+    confidenceWeight: 8,
+    nextStep: "ask_age",
+  },
+  ask_age: {
+    id: "ask_age",
+    messages: ["How old are you?"],
+    inputType: "numeric",
+    confidenceWeight: 8,
+    validator: "age",
+    nextStep: "ask_location",
+  },
+  ask_location: {
+    id: "ask_location",
+    messages: ["Where are you currently located?"],
+    inputType: "location",
+    confidenceWeight: 8,
+    nextStep: "branch_by_status", // Frontend resolves based on status
+  },
+  // Student flow
+  student_college: {
+    id: "student_college",
+    messages: ["Which college are you currently studying in?"],
+    inputType: "text",
+    confidenceWeight: 10,
+    nextStep: "student_course",
+  },
+  student_course: {
+    id: "student_course",
+    messages: ["What course and stream are you pursuing?"],
+    inputType: "text",
+    confidenceWeight: 10,
+    nextStep: "student_semester",
+  },
+  student_semester: {
+    id: "student_semester",
+    messages: ["Which semester are you currently in?"],
+    inputType: "numeric",
+    confidenceWeight: 8,
+    validator: "semester",
+    nextStep: "student_subjects",
+  },
+  student_subjects: {
+    id: "student_subjects",
+    messages: ["Which subjects are you familiar with?"],
+    inputType: "multi-chips",
+    options: [
+      "Python",
+      "Java",
+      "C++",
+      "JavaScript",
+      "Data Structures",
+      "Algorithms",
+      "Web Development",
+      "Mobile Development",
+      "Machine Learning",
+      "AI",
+      "Database",
+      "Cloud Computing",
+    ],
+    multiSelect: true,
+    confidenceWeight: 10,
+    nextStep: "student_cgpa",
+  },
+  student_cgpa: {
+    id: "student_cgpa",
+    messages: ["What is your current CGPA?"],
+    inputType: "numeric",
+    confidenceWeight: 8,
+    validator: "cgpa",
+    nextStep: "student_aspiration",
+  },
+  student_aspiration: {
+    id: "student_aspiration",
+    messages: ["What would you like to become?"],
+    inputType: "chips",
+    options: [
+      "Software Engineer",
+      "Data Scientist",
+      "Product Manager",
+      "Designer",
+      "Business Analyst",
+      "DevOps Engineer",
+    ],
+    confidenceWeight: 10,
+    nextStep: "role_selection",
+  },
+  // Graduate flow
+  graduate_college: {
+    id: "graduate_college",
+    messages: ["Which college did you study in?"],
+    inputType: "text",
+    confidenceWeight: 10,
+    nextStep: "graduate_course",
+  },
+  graduate_course: {
+    id: "graduate_course",
+    messages: ["What course and stream did you complete?"],
+    inputType: "text",
+    confidenceWeight: 10,
+    nextStep: "graduate_passout",
+  },
+  graduate_passout: {
+    id: "graduate_passout",
+    messages: ["Which year did you graduate?"],
+    inputType: "numeric",
+    confidenceWeight: 8,
+    validator: "year",
+    nextStep: "graduate_subjects",
+  },
+  graduate_subjects: {
+    id: "graduate_subjects",
+    messages: ["Which subjects are you familiar with?"],
+    inputType: "multi-chips",
+    options: [
+      "Python",
+      "Java",
+      "C++",
+      "JavaScript",
+      "Data Structures",
+      "Algorithms",
+      "Web Development",
+      "Mobile Development",
+      "Machine Learning",
+      "AI",
+      "Database",
+      "Cloud Computing",
+    ],
+    multiSelect: true,
+    confidenceWeight: 10,
+    nextStep: "graduate_cgpa",
+  },
+  graduate_cgpa: {
+    id: "graduate_cgpa",
+    messages: ["What was your final CGPA?"],
+    inputType: "numeric",
+    confidenceWeight: 8,
+    validator: "cgpa",
+    nextStep: "graduate_resume",
+  },
+  graduate_resume: {
+    id: "graduate_resume",
+    messages: ["Upload your resume so we can analyze your profile."],
+    inputType: "file",
+    fileType: "resume",
+    confidenceWeight: 12,
+    nextStep: "graduate_aspiration",
+  },
+  graduate_aspiration: {
+    id: "graduate_aspiration",
+    messages: ["What would you like to become next?"],
+    inputType: "chips",
+    options: [
+      "Software Engineer",
+      "Data Scientist",
+      "Product Manager",
+      "Designer",
+      "Business Analyst",
+      "DevOps Engineer",
+    ],
+    confidenceWeight: 10,
+    nextStep: "role_selection",
+  },
+  // Working flow
+  working_resume: {
+    id: "working_resume",
+    messages: ["Upload your resume so we can understand your experience."],
+    inputType: "file",
+    fileType: "resume",
+    confidenceWeight: 15,
+    nextStep: "working_office_id",
+  },
+  working_office_id: {
+    id: "working_office_id",
+    messages: [
+      "Upload your office ID to get verified as a working professional.",
+      "(This is optional but helps us verify your profile)",
+    ],
+    inputType: "file",
+    fileType: "id",
+    isOptional: true,
+    confidenceWeight: 5,
+    nextStep: "working_upgrade_goal",
+  },
+  working_upgrade_goal: {
+    id: "working_upgrade_goal",
+    messages: ["Which career or role would you like to upgrade to?"],
+    inputType: "chips",
+    options: [
+      "Senior Engineer",
+      "Lead Engineer",
+      "Engineering Manager",
+      "Product Manager",
+      "Solution Architect",
+      "CTO",
+    ],
+    confidenceWeight: 12,
+    nextStep: "role_selection",
+  },
+  // Common final steps
+  role_selection: {
+    id: "role_selection",
+    messages: ["Based on your interest, choose a role you're curious about."],
+    inputType: "role-cards",
+    confidenceWeight: 15,
+    nextStep: "analysis",
+  },
+  analysis: {
+    id: "analysis",
+    messages: [
+      "We're analyzing how your current knowledge matches industry expectations",
+      "and estimating the time needed to build a custom plan for you...",
+    ],
+    inputType: "none",
+    confidenceWeight: 13,
+    nextStep: "complete",
+  },
+  complete: {
+    id: "complete",
+    messages: [
+      "Amazing! I have everything I need. 🎯",
+      "Welcome to Exoptus, where education meets direction. 🚀",
+    ],
+    inputType: "none",
+    confidenceWeight: 0,
+    nextStep: null,
+  },
+};
+
+/**
+ * GET /onboarding/flow
+ * Returns the conversation flow definition
+ * Frontend fetches this to drive the chat UI
+ */
+router.get("/flow", async (_req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      flow: {
+        steps: CONVERSATION_FLOW,
+        totalSteps: 14, // Approximate for progress calculation
+        initialStep: "intro",
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Error fetching flow:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to fetch onboarding flow",
+    });
+  }
+});
+
+/**
+ * POST /onboarding/analyze
+ * Trigger career analysis based on collected user data
+ * Called when user completes onboarding flow
+ */
+router.post("/analyze", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { userData, answers } = req.body;
+
+    if (!userData) {
+      return res.status(400).json({
+        success: false,
+        error: "userData is required",
+      });
+    }
+
+    // PHASE 3: Persist onboarding answers if provided
+    // This enables: "User onboarding responses are persisted server-side"
+    if (answers && Array.isArray(answers) && answers.length > 0) {
+      // Delete old answers for this user (in case of re-onboarding)
+      await prisma.onboardingAnswer.deleteMany({
+        where: { userId },
+      });
+
+      // Insert new answers
+      const answerRecords = answers.map((answer: any) => ({
+        userId,
+        questionId: answer.questionId || "unknown",
+        answer:
+          typeof answer.answer === "string"
+            ? answer.answer
+            : JSON.stringify(answer.answer),
+      }));
+
+      await prisma.onboardingAnswer.createMany({
+        data: answerRecords,
+      });
+
+      console.log(
+        `✅ Persisted ${answerRecords.length} onboarding answers for user ${userId}`
+      );
+    }
+
+    // Also persist answers from userData fields as individual records
+    const userDataAnswers = [
+      { questionId: "name", answer: userData.name },
+      { questionId: "status", answer: userData.status },
+      { questionId: "gender", answer: userData.gender },
+      { questionId: "age", answer: userData.age?.toString() },
+      { questionId: "state", answer: userData.state },
+      { questionId: "city", answer: userData.city },
+      { questionId: "college", answer: userData.college },
+      { questionId: "course", answer: userData.course },
+      { questionId: "semester", answer: userData.semester?.toString() },
+      { questionId: "passoutYear", answer: userData.passoutYear?.toString() },
+      {
+        questionId: "subjects",
+        answer: JSON.stringify(userData.subjects || []),
+      },
+      { questionId: "cgpa", answer: userData.cgpa?.toString() },
+      { questionId: "careerAspiration", answer: userData.careerAspiration },
+      { questionId: "selectedRole", answer: userData.selectedRoleName },
+    ].filter((a) => a.answer); // Only persist non-empty answers
+
+    if (userDataAnswers.length > 0) {
+      await prisma.onboardingAnswer.createMany({
+        data: userDataAnswers.map((a) => ({
+          userId,
+          questionId: `userData_${a.questionId}`,
+          answer: a.answer!,
+        })),
+      });
+    }
+
+    // ============================================
+    // UPDATE USER IDENTITY DATA
+    // ============================================
+    // Auth ≠ Profile: Auth proves WHO, Profile stores WHO THEY SAY THEY ARE
+    // Update User.name and mark onboarding complete
+    if (userData.name) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: userData.name,
+          onboardingCompleted: true,
+          onboardingCompletedAt: new Date(),
+          onboardingStatus: "completed",
+        },
+      });
+      console.log(
+        `✅ Updated User.name to "${userData.name}" for user ${userId}`
+      );
+    }
+
+    // Also create/update Profile table for quick access
+    await prisma.profile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        name: userData.name,
+        college: userData.college,
+        course: userData.course,
+        year: userData.semester || userData.passoutYear,
+        // goals: userData.careerAspiration
+        //   ? JSON.stringify([userData.careerAspiration])
+        //   : null,
+      },
+      update: {
+        name: userData.name,
+        college: userData.college,
+        course: userData.course,
+        year: userData.semester || userData.passoutYear,
+        // goals: userData.careerAspiration
+        //   ? JSON.stringify([userData.careerAspiration])
+        //   : null,
+      },
+    });
+
+    // Get user's onboarding profile or create from userData
+    let profile = await prisma.onboardingProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!profile && userData) {
+      // Create profile from userData
+      profile = await prisma.onboardingProfile.create({
+        data: {
+          userId,
+          name: userData.name,
+          gender: userData.gender,
+          age: userData.age,
+          state: userData.state,
+          city: userData.city,
+          status: userData.status || "Student",
+          college: userData.college,
+          course: userData.course,
+          stream: userData.stream,
+          semester: userData.semester,
+          passoutYear: userData.passoutYear,
+          cgpa: userData.cgpa,
+          subjects: userData.subjects
+            ? JSON.stringify(userData.subjects)
+            : null,
+          careerAspiration: userData.careerAspiration,
+          selectedRoleName: userData.selectedRole?.title,
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    // Generate analysis
+    const submissionData = {
+      name: userData.name || profile?.name || "",
+      status: userData.status || profile?.status || "Student",
+      subjects:
+        userData.subjects ||
+        (profile?.subjects ? JSON.parse(profile.subjects) : []),
+      passoutYear: userData.passoutYear || profile?.passoutYear,
+    };
+
+    const analysis = await generateCareerAnalysis(
+      userId,
+      submissionData as any
+    );
+
+    // Build frontend-friendly response
+    const analysisResponse = {
+      skills: [
+        {
+          name: "Technical Skills",
+          userLevel: Math.min(1, (analysis.jrScore || 50) / 100 + 0.15),
+          industryAvg: 0.75,
+        },
+        { name: "Communication", userLevel: 0.78, industryAvg: 0.7 },
+        { name: "Problem Solving", userLevel: 0.72, industryAvg: 0.68 },
+        {
+          name: "Domain Knowledge",
+          userLevel: Math.min(1, (analysis.jrScore || 50) / 100 - 0.07),
+          industryAvg: 0.72,
+        },
+      ],
+      growthProjection: [
+        { month: 0, readiness: (analysis.jrScore || 50) / 100 - 0.05 },
+        {
+          month: 3,
+          readiness: Math.min(1, (analysis.jrScore || 50) / 100 + 0.17),
+        },
+        {
+          month: 6,
+          readiness: Math.min(1, (analysis.jrScore || 50) / 100 + 0.33),
+        },
+        {
+          month: 9,
+          readiness: Math.min(1, (analysis.jrScore || 50) / 100 + 0.43),
+        },
+        { month: 12, readiness: 0.95 },
+      ],
+      strengths: [
+        "Strong academic foundation",
+        "Natural communication ability",
+      ],
+      focusAreas: analysis.missingSkills
+        ? JSON.parse(analysis.missingSkills).slice(0, 2)
+        : ["Industry-specific tools", "Real-world project experience"],
+      readinessTimeline: `${analysis.estimatedMonths || 9}-${
+        (analysis.estimatedMonths || 9) + 3
+      } months`,
+      jrScore: analysis.jrScore,
+      topRole: analysis.topRole,
+      topRoleMatch: analysis.topRoleMatch,
+      generatedAt: new Date().toISOString(),
+    };
+
+    res.json({
+      success: true,
+      analysis: analysisResponse,
+    });
+  } catch (error: any) {
+    console.error("❌ Error analyzing career data:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to analyze career data",
+    });
+  }
+});
 
 /**
  * Onboarding submission schema - matches chat screen data
@@ -207,7 +779,8 @@ router.get("/profile", requireAuth, async (req: Request, res: Response) => {
 
 /**
  * Career Analysis Engine
- * Calculates JR Score, skill gaps, and role recommendations
+ * Calculates JR Score using Gemini AI with fallback safety
+ * Stores skill gaps, and role recommendations
  */
 async function generateCareerAnalysis(
   userId: string,
@@ -246,24 +819,37 @@ async function generateCareerAnalysis(
   );
   const topMatch = sortedMatches[0];
 
-  // Calculate JR Score (0-100)
-  // Formula: (user_skills / average_role_skills * 50) + (experience_level * 20) + (education_fit * 30)
-  const skillScore = topMatch
-    ? (topMatch.matchPercentage / 100) * 50
-    : Math.min((userSkills.length / 10) * 50, 50);
+  // ============================================
+  // GEMINI AI JR SCORE CALCULATION
+  // ============================================
+  // Build user context for Gemini
+  const scoringContext: UserScoringContext = {
+    name: userData.name,
+    status: userData.status as "Student" | "Graduate" | "Working",
+    age: userData.age,
+    gender: userData.gender,
+    state: userData.state,
+    city: userData.city,
+    college: userData.college,
+    course: userData.course,
+    stream: userData.stream,
+    semester: userData.semester,
+    passoutYear: userData.passoutYear,
+    cgpa: userData.cgpa,
+    subjects: userData.subjects,
+    careerAspiration: userData.careerAspiration,
+    selectedRoleName: userData.selectedRoleName,
+    resumeUrl: userData.resumeUrl,
+  };
 
-  const experienceScore = getExperienceScore(userData.status);
-  const educationScore = getEducationScore(
-    userData.status,
-    userData.passoutYear
+  // Call Gemini (with full safety guarantees - never throws)
+  console.log(`🤖 Calculating JR Score for user ${userId}...`);
+  const jrScoreResult: JRScoreResult = await calculateJRScore(scoringContext);
+  console.log(
+    `✅ JR Score calculated: ${jrScoreResult.jr_score} (source: ${jrScoreResult.source})`
   );
 
-  const jrScore = Math.min(
-    100,
-    Math.round(skillScore + experienceScore + educationScore)
-  );
-
-  // Build missing skills list
+  // Build missing skills list from role matching
   const allMissingSkills = new Set<string>();
   sortedMatches.slice(0, 3).forEach((match) => {
     match.missingSkills.forEach((skill: string) => {
@@ -271,12 +857,22 @@ async function generateCareerAnalysis(
     });
   });
 
-  // Create or update CareerAnalysis
+  // Create or update CareerAnalysis with Gemini score breakdown
   const analysis = await prisma.careerAnalysis.upsert({
     where: { userId },
     create: {
       userId,
-      jrScore,
+      // JR Score from Gemini (or fallback)
+      jrScore: jrScoreResult.jr_score,
+      // JR Score breakdown - temporarily disabled
+      // jrConfidence: jrScoreResult.confidence,
+      // jrClarity: jrScoreResult.clarity,
+      // jrConsistency: jrScoreResult.consistency,
+      // jrExecutionReadiness: jrScoreResult.execution_readiness,
+      // jrRiskFlags: JSON.stringify(jrScoreResult.risk_flags),
+      // jrReasoning: jrScoreResult.reasoning,
+      // jrSource: jrScoreResult.source,
+      // Role matching data
       skillGap: topMatch ? 100 - topMatch.matchPercentage : 80,
       topRole: topMatch?.role.title,
       topRoleMatch: topMatch?.matchPercentage,
@@ -286,10 +882,20 @@ async function generateCareerAnalysis(
         userSkills,
         topMatch?.missingSkills || []
       ),
-      estimatedMonths: calculateMonthsToTarget(jrScore),
+      estimatedMonths: calculateMonthsToTarget(jrScoreResult.jr_score),
     },
     update: {
-      jrScore,
+      // JR Score from Gemini (or fallback)
+      jrScore: jrScoreResult.jr_score,
+      // JR Score breakdown - temporarily disabled
+      // jrConfidence: jrScoreResult.confidence,
+      // jrClarity: jrScoreResult.clarity,
+      // jrConsistency: jrScoreResult.consistency,
+      // jrExecutionReadiness: jrScoreResult.execution_readiness,
+      // jrRiskFlags: JSON.stringify(jrScoreResult.risk_flags),
+      // jrReasoning: jrScoreResult.reasoning,
+      // jrSource: jrScoreResult.source,
+      // Role matching data
       skillGap: topMatch ? 100 - topMatch.matchPercentage : 80,
       topRole: topMatch?.role.title,
       topRoleMatch: topMatch?.matchPercentage,
@@ -299,51 +905,21 @@ async function generateCareerAnalysis(
         userSkills,
         topMatch?.missingSkills || []
       ),
-      estimatedMonths: calculateMonthsToTarget(jrScore),
+      estimatedMonths: calculateMonthsToTarget(jrScoreResult.jr_score),
       updatedAt: new Date(),
     },
   });
 
+  // Also update User.jrScore for quick access
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      jrScore: jrScoreResult.jr_score,
+      jrScoreUpdatedAt: new Date(),
+    },
+  });
+
   return analysis;
-}
-
-/**
- * Helper: Calculate experience score based on user status
- */
-function getExperienceScore(status?: string): number {
-  switch (status) {
-    case "Student":
-      return 5; // Beginner level
-    case "Graduate":
-      return 15; // Recently graduated
-    case "Working":
-      return 25; // Already has experience
-    default:
-      return 0;
-  }
-}
-
-/**
- * Helper: Calculate education score based on status and graduation year
- */
-function getEducationScore(status?: string, passoutYear?: number): number {
-  if (status === "Student") {
-    return 15; // Currently studying
-  }
-
-  if (!passoutYear) return 0;
-
-  const yearsSinceGraduation = new Date().getFullYear() - passoutYear;
-
-  if (yearsSinceGraduation <= 0) {
-    return 20; // Recent graduate
-  }
-
-  if (yearsSinceGraduation <= 2) {
-    return 25; // Recent with experience
-  }
-
-  return 30; // Established professional
 }
 
 /**

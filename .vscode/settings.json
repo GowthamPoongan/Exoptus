@@ -1,3 +1,24 @@
 {
-  "java.compile.nullAnalysis.mode": "automatic"
+  "java.enabled": false,
+  "java.jdt.ls.enabled": false,
+  "java.import.gradle.enabled": false,
+  "java.autobuild.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "gradle.nestedProjects": false,
+  "files.exclude": {
+    "**/android": true,
+    "**/node_modules": true,
+    "**/.gradle": true,
+    "**/.idea": true
+  },
+  "search.exclude": {
+    "**/android": true,
+    "**/node_modules": true,
+    "**/.gradle": true
+  },
+  "files.watcherExclude": {
+    "**/android/**": true,
+    "**/node_modules/**": true,
+    "**/.gradle/**": true
+  }
 }

@@ -98,7 +98,7 @@ export default function EmailVerificationScreen() {
     if (resendDisabled || !email) return;
 
     try {
-      const result = await authService.sendMagicLink(email, "web");
+      const result = await authService.sendMagicLink(email);
       if (result.success) {
         Alert.alert("Email Sent", "We've sent a new magic link to your email.");
       } else {
@@ -168,7 +168,7 @@ export default function EmailVerificationScreen() {
           />
         </Animated.View>
 
-        {/* Resend Button */}
+        {/* Buttons */}
         <View style={styles.buttonContainer}>
           <Pressable
             onPress={handleResendEmail}
@@ -246,6 +246,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "System",
     alignSelf: "flex-start",
+    continueButton: {
+      width: "100%",
+      paddingVertical: 16,
+      borderRadius: 25,
+      backgroundColor: "#8B5CF6",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    continueButtonText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+      fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "System",
+    },
     marginBottom: 20,
   },
   emailHighlight: {

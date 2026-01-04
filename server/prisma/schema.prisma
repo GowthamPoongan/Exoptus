@@ -6,9 +6,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Use SQLite for local development to avoid needing PostgreSQL.
+// PostgreSQL for Supabase
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -161,6 +161,8 @@ model OnboardingProfile {
   // ============================================
   // PROFILE TABLE - Simple user profile (separate from onboarding)
   // ============================================
+  // Stores key identity data extracted from onboarding
+  // This is the "who they say they are" layer
   model Profile {
     id        String   @id @default(uuid())
     userId    String   @unique @map("user_id")
@@ -170,6 +172,7 @@ model OnboardingProfile {
     course    String?
     year      Int?
     phone     String?
+    goals     String?  // JSON array of career goals
 
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
@@ -207,16 +210,47 @@ model UserFeedback {
 }
 
 // ============================================
+// ONBOARDING ANSWERS TABLE - PHASE 3
+// ============================================
+// Persists user responses during onboarding conversation
+// Enables: "User onboarding responses are persisted server-side"
+model OnboardingAnswer {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  
+  // Question data
+  questionId  String   @map("question_id")  // e.g., "ask_name", "ask_status"
+  answer      String                        // User's response (JSON for multi-select)
+  
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([questionId])
+  @@map("onboarding_answers")
+}
+
+// ============================================
 // CAREER ANALYSIS TABLE - JR Score & Results
 // ============================================
 // Stores analysis results for user profile
+// JR Score breakdown from Gemini AI with validation
 model CareerAnalysis {
   id        String   @id @default(uuid())
   userId    String   @unique @map("user_id")
   
-  // JR Score & Metrics
-  jrScore   Float    @default(0) // 0-100 scale
+  // JR Score & Metrics (0-100 scale)
+  jrScore   Float    @default(0) // Overall JR score
   skillGap  Int      @default(0) // Percentage (0-100)
+  
+  // JR Score Breakdown (Gemini AI calculated, 0-25 each)
+  jrConfidence         Int?     @map("jr_confidence") // Career path certainty (0-25)
+  jrClarity            Int?     @map("jr_clarity") // Goal clarity (0-25)
+  jrConsistency        Int?     @map("jr_consistency") // Skills-goals alignment (0-25)
+  jrExecutionReadiness Int?     @map("jr_execution_readiness") // Action readiness (0-25)
+  jrRiskFlags          String?  @map("jr_risk_flags") // JSON array of risk flags
+  jrReasoning          String?  @map("jr_reasoning") // AI reasoning for score
+  jrSource             String?  @map("jr_source") // 'gemini' | 'fallback' | 'cached'
   
   // Analysis Results
   matchedRoleIds      String?  @map("matched_role_ids") // Comma-separated role IDs
