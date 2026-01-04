@@ -530,7 +530,11 @@ export function useOnboardingChat(): UseOnboardingChatReturn {
             restoredUserData.gender = value as string;
             break;
           case "ask_age":
-            restoredUserData.age = Array.isArray(value) ? parseInt(value[0], 10) : (typeof value === 'string' ? parseInt(value, 10) : value);
+            restoredUserData.age = Array.isArray(value)
+              ? parseInt(value[0], 10)
+              : typeof value === "string"
+              ? parseInt(value, 10)
+              : value;
             break;
           // ... restore other fields
         }

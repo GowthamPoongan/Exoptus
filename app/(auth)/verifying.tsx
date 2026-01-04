@@ -345,7 +345,7 @@ export default function VerifyingScreen() {
         // Show more helpful error info in the UI
         setState("error");
         setErrorMessage(
-          (cachedVerificationResult.error || "Verification failed")
+          cachedVerificationResult.error || "Verification failed"
         );
       }
     } catch (error: any) {

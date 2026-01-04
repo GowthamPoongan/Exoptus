@@ -18,7 +18,8 @@ const COLORS = {
   sidebarActive: "linear-gradient(135deg, #0575E6 0%, #021B79 100%)",
 };
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000";
+const API_URL =
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:3000";
 
 interface Stats {
   totalUsers: number;
