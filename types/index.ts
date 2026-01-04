@@ -68,9 +68,6 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string | null;
-
-  // JR Score
-  jrScore?: number | null;
 }
 
 // Auth response from backend

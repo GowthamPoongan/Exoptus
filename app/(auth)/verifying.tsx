@@ -95,7 +95,7 @@ const VerifiedBadge = ({
     transform: [
       { scale: badgeScale.value },
       { rotate: `${badgeRotation.value}deg` },
-    ],
+    ] as any,
   }));
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
@@ -194,7 +194,7 @@ const LoadingSpinner = ({ size = 100 }: { size?: number }) => {
     transform: [
       { rotate: `${rotation.value}deg` },
       { scale: pulseScale.value },
-    ],
+    ] as any,
   }));
 
   return (
@@ -345,8 +345,7 @@ export default function VerifyingScreen() {
         // Show more helpful error info in the UI
         setState("error");
         setErrorMessage(
-          (cachedVerificationResult.error || "Verification failed") +
-            (result?.debug ? ` — ${result.debug}` : "")
+          (cachedVerificationResult.error || "Verification failed")
         );
       }
     } catch (error: any) {

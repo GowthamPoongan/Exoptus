@@ -1538,10 +1538,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: "rgba(255,255,255,0.12)",
-    backdropFilter: "blur(20px)",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.1)",
-  },
+  } as any,
   headerContent: {
     flexDirection: "row",
     alignItems: "center",

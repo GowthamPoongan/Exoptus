@@ -18,7 +18,7 @@ const COLORS = {
   sidebarActive: "linear-gradient(135deg, #0575E6 0%, #021B79 100%)",
 };
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000";
 
 interface Stats {
   totalUsers: number;
@@ -724,7 +724,7 @@ function AnalyticsView({ analytics }: { analytics: Analytics | null }) {
   }
 
   const jrScoreData = analytics.jrScore || {};
-  const { average = 0, distribution = {}, topRoles = [] } = jrScoreData;
+  const { average = 0, distribution = {}, topRoles = [] } = jrScoreData as any;
   const maxValue = Math.max(
     ...(Object.values(distribution || {}) as number[]),
     1
