@@ -26,17 +26,24 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1B3A8C"
-      }
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "extra": {
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "b21e56ac-cf11-4373-8200-71803592740b"
+      },
+      "router": {}
     },
     "plugins": [
       "expo-router",
       "expo-font",
-      "@react-native-google-signin/google-signin",
       "expo-web-browser"
     ]
   }

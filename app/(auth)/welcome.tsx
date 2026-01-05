@@ -227,7 +227,7 @@ export default function WelcomeScreen() {
 
       {/* Background Image */}
       <Image
-        source={require("../../assets/images/welcome-bg.png")}
+        source={require("../../assets/images/welcome-bg.jpg")}
         style={styles.backgroundImage}
         resizeMode="cover"
       />

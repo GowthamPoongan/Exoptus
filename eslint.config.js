@@ -5,5 +5,5 @@ module.exports = [
   expoConfig,
   {
     ignores: ["dist/*"],
-  }
+  },
 ];
