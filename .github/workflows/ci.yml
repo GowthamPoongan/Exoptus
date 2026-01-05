@@ -89,21 +89,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build Packages
-        run: npm run build -w @exoptus/utils -w @exoptus/api-contracts -w @exoptus/feature-flags
-
-      - name: Export Mobile App
-        working-directory: apps/mobile
-        run: npx expo export --platform all
+      - name: Build All Packages
+        run: npm run build
 
   # ============================================
   # Build: Auth Service
@@ -125,12 +115,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        working-directory: services/auth-service
-        run: npx prisma generate
-
-      - name: Build Service
-        run: npm run build -w @exoptus/auth-service
+      - name: Build Server
+        run: npm run build -w exoptus-server
 
   # ============================================
   # Security: Dependency Audit

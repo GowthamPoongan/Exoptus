@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@rolldown/pluginutils": "^1.0.0-beta.27",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
