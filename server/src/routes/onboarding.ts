@@ -794,7 +794,7 @@ async function generateCareerAnalysis(
   const userSkillsLower = userSkills.map((s) => s.toLowerCase());
 
   // Calculate metrics for each role
-  const roleMatches = allRoles.map((role) => {
+  const roleMatches = allRoles.map((role: any) => {
     const requiredSkills = JSON.parse(role.skillsRequired);
     const matchedSkills = requiredSkills.filter((skill: string) =>
       userSkillsLower.includes(skill.toLowerCase())
@@ -815,7 +815,7 @@ async function generateCareerAnalysis(
 
   // Sort by match percentage and get top role
   const sortedMatches = roleMatches.sort(
-    (a, b) => b.matchPercentage - a.matchPercentage
+    (a: any, b: any) => b.matchPercentage - a.matchPercentage
   );
   const topMatch = sortedMatches[0];
 
@@ -851,7 +851,7 @@ async function generateCareerAnalysis(
 
   // Build missing skills list from role matching
   const allMissingSkills = new Set<string>();
-  sortedMatches.slice(0, 3).forEach((match) => {
+  sortedMatches.slice(0, 3).forEach((match: any) => {
     match.missingSkills.forEach((skill: string) => {
       allMissingSkills.add(skill);
     });
@@ -876,7 +876,7 @@ async function generateCareerAnalysis(
       skillGap: topMatch ? 100 - topMatch.matchPercentage : 80,
       topRole: topMatch?.role.title,
       topRoleMatch: topMatch?.matchPercentage,
-      matchedRoleIds: sortedMatches.map((m) => m.role.id).join(","),
+      matchedRoleIds: sortedMatches.map((m: any) => m.role.id).join(","),
       missingSkills: JSON.stringify(Array.from(allMissingSkills)),
       growthMatrix: buildGrowthMatrix(
         userSkills,
@@ -899,7 +899,7 @@ async function generateCareerAnalysis(
       skillGap: topMatch ? 100 - topMatch.matchPercentage : 80,
       topRole: topMatch?.role.title,
       topRoleMatch: topMatch?.matchPercentage,
-      matchedRoleIds: sortedMatches.map((m) => m.role.id).join(","),
+      matchedRoleIds: sortedMatches.map((m: any) => m.role.id).join(","),
       missingSkills: JSON.stringify(Array.from(allMissingSkills)),
       growthMatrix: buildGrowthMatrix(
         userSkills,

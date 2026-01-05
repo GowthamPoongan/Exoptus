@@ -55,7 +55,7 @@ router.get("/", async (req: Request, res: Response) => {
     });
 
     // Parse skillsRequired from JSON string
-    const formattedRoles = roles.map((role) => ({
+    const formattedRoles = roles.map((role: any) => ({
       ...role,
       skillsRequired: JSON.parse(role.skillsRequired),
     }));
@@ -165,7 +165,7 @@ router.get(
         },
       });
 
-      const formattedRoles = matchedRoles.map((role) => ({
+      const formattedRoles = matchedRoles.map((role: any) => ({
         ...role,
         skillsRequired: JSON.parse(role.skillsRequired),
       }));

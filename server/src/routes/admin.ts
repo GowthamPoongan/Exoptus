@@ -250,14 +250,14 @@ router.get(
 
       // Calculate distribution buckets
       const distribution = {
-        "0-20": analyses.filter((a) => a.jrScore < 20).length,
-        "20-40": analyses.filter((a) => a.jrScore >= 20 && a.jrScore < 40)
+        "0-20": analyses.filter((a: any) => a.jrScore < 20).length,
+        "20-40": analyses.filter((a: any) => a.jrScore >= 20 && a.jrScore < 40)
           .length,
-        "40-60": analyses.filter((a) => a.jrScore >= 40 && a.jrScore < 60)
+        "40-60": analyses.filter((a: any) => a.jrScore >= 40 && a.jrScore < 60)
           .length,
-        "60-80": analyses.filter((a) => a.jrScore >= 60 && a.jrScore < 80)
+        "60-80": analyses.filter((a: any) => a.jrScore >= 60 && a.jrScore < 80)
           .length,
-        "80-100": analyses.filter((a) => a.jrScore >= 80).length,
+        "80-100": analyses.filter((a: any) => a.jrScore >= 80).length,
       };
 
       // Top roles
@@ -280,7 +280,7 @@ router.get(
           averageScore:
             analyses.length > 0
               ? (
-                  analyses.reduce((sum, a) => sum + a.jrScore, 0) /
+                  analyses.reduce((sum: number, a: any) => sum + a.jrScore, 0) /
                   analyses.length
                 ).toFixed(2)
               : 0,
@@ -351,7 +351,7 @@ router.get("/roles", requireAdmin, async (req: Request, res: Response) => {
       orderBy: { demandLevel: "desc" },
     });
 
-    const formattedRoles = roles.map((role) => ({
+    const formattedRoles = roles.map((role: any) => ({
       ...role,
       skillsRequired: JSON.parse(role.skillsRequired),
     }));

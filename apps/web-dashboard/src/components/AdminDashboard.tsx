@@ -801,7 +801,7 @@ function AnalyticsView({ analytics }: { analytics: Analytics | null }) {
           Top Career Choices
         </h3>
         {topRoles && topRoles.length > 0 ? (
-          topRoles.map((role, idx) => (
+          topRoles.map((role: any, idx: number) => (
             <div
               key={idx}
               style={{
