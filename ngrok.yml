@@ -1,0 +1,8 @@
+version: 3
+authtoken: 37KtL1A0RLxNdAX2fokAYBOiG33_6tZCf7CH4PQ296nE3Su2T
+
+tunnels:
+  exoptus-api:
+    proto: http
+    addr: 3000
+    domain: imperscriptible-daren-unpunctilious.ngrok-free.dev

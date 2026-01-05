@@ -11,6 +11,8 @@
 
 import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import { User, OnboardingStatus } from "../types";
 
 // Storage keys
@@ -65,11 +67,6 @@ class AuthService {
       token,
     });
 
-    console.log(
-      "🔐 Verify response:",
-      JSON.stringify(response).substring(0, 300)
-    );
-
     // API wraps in { success, data } - backend also returns { success, data }
     // So structure is: { success: true, data: { success: true, data: { token, user } } }
     // OR backend returns directly: { success: true, data: { token, user } } where data has the auth response
@@ -113,11 +110,6 @@ class AuthService {
       idToken,
     });
 
-    console.log(
-      "🔍 Google sign-in raw response:",
-      JSON.stringify(response).substring(0, 500)
-    );
-
     // Handle new nested response structure: { success: true, data: { token, user, redirectTo, isReturningUser } }
     if (response.success && response.data?.data) {
       const authData = response.data.data;
@@ -127,12 +119,6 @@ class AuthService {
 
       const isReturning =
         authData.isReturningUser || this.hasOnboardingData(authData.user);
-      console.log("👤 isReturningUser from backend:", authData.isReturningUser);
-      console.log(
-        "👤 hasOnboardingData check:",
-        this.hasOnboardingData(authData.user)
-      );
-      console.log("👤 Final isReturningUser:", isReturning);
 
       return {
         success: true,
@@ -145,6 +131,84 @@ class AuthService {
       success: false,
       error: response.error || "Google sign-in failed",
     };
+  }
+
+  /**
+   * Web-based Google OAuth (for Expo Go / no native module)
+   * Opens browser -> Google login -> server callback -> deep link back
+   *
+   * This is the lightweight approach - no heavy SDKs, works everywhere.
+   */
+  async startWebGoogleOAuth(): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      // Get server URL from API base
+      const serverUrl = api.getBaseUrl();
+
+      // Create the OAuth start URL with webBrowser flag for direct redirect
+      const authUrl = `${serverUrl}/auth/google/start?webBrowser=true`;
+
+      // The callback URL that expo-web-browser will listen for
+      const callbackUrl = Linking.createURL("google-callback");
+
+      // Open browser for Google OAuth
+      // User will be redirected back to app via deep link after success
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        callbackUrl
+      );
+
+      if (result.type === "success" && result.url) {
+        // Extract token from callback URL
+        const url = result.url;
+        let token: string | null = null;
+
+        if (url.includes("token=")) {
+          const match = url.match(/token=([^&]+)/);
+          if (match) token = match[1];
+        }
+
+        if (token) {
+          // Handle the callback with the token
+          const callbackResult = await this.handleGoogleCallback(token);
+          return {
+            success: callbackResult.success,
+            error: callbackResult.error,
+          };
+        }
+
+        // Check for error in URL
+        if (url.includes("error=")) {
+          const errorMatch = url.match(/error=([^&]+)/);
+          return {
+            success: false,
+            error: errorMatch
+              ? decodeURIComponent(errorMatch[1])
+              : "OAuth failed",
+          };
+        }
+      }
+
+      if (result.type === "cancel" || result.type === "dismiss") {
+        return {
+          success: false,
+          error: "Sign-in cancelled",
+        };
+      }
+
+      return {
+        success: false,
+        error: "OAuth flow did not complete",
+      };
+    } catch (error) {
+      console.error("Web Google OAuth error:", error);
+      return {
+        success: false,
+        error: "Failed to open sign-in. Please try again.",
+      };
+    }
   }
 
   /**
@@ -227,7 +291,6 @@ class AuthService {
         error: "Failed to get user session",
       };
     } catch (error) {
-      console.error("handleGoogleCallback error:", error);
       return {
         success: false,
         error: "Failed to complete sign-in",
@@ -356,10 +419,19 @@ class AuthService {
     api.setAuthToken(null);
   }
 
+  /**
+   * Store token directly (used when JWT is already verified via GET endpoint)
+   * Sets up auth state without making additional API calls
+   */
+  async storeToken(token: string): Promise<void> {
+    if (!token) return;
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+    api.setAuthToken(token);
+  }
+
   // Token management helpers
   private async setTokens(token: string, refreshToken?: string): Promise<void> {
     if (!token) {
-      console.error("❌ Cannot save undefined token");
       return;
     }
     await AsyncStorage.setItem(TOKEN_KEY, token);

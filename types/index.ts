@@ -34,7 +34,7 @@ export type AuthProvider = "email" | "google";
 // Onboarding status enum (matches backend)
 export type OnboardingStatus = "not_started" | "in_progress" | "completed";
 
-// User types (aligned with backend response)
+// User types (aligned with backend Prisma schema)
 export interface User {
   id: string;
   email: string;
@@ -42,21 +42,32 @@ export interface User {
   avatar?: string;
   emailVerified: boolean;
 
-  // New schema fields (multi-provider support)
-  authProviders?: string[]; // ["email", "google"]
+  // Profile data (from /me endpoint)
+  college?: string | null;
+  course?: string | null;
+  year?: number | null;
+  goals?: string[];
+
+  // Multi-provider auth support (matches Prisma - comma-separated string in DB, but exposed as string or parsed)
+  authProviders?: string; // Comma-separated: "email,google" (matches Prisma String type)
   createdWith?: AuthProvider;
   googleId?: string | null;
 
   // Enhanced onboarding tracking
-  onboardingCompleted?: boolean;
+  onboardingCompleted: boolean;
   onboardingStep?: string | null;
   lastCompletedStep?: string | null;
 
-  // Legacy field (for backward compatibility)
+  // Legacy field (for backward compatibility with existing code)
   onboardingStatus: OnboardingStatus;
-  authProvider: AuthProvider;
+
+  // Career data
+  jrScore?: number | null;
+  topRole?: string | null;
 
   createdAt?: string;
+  updatedAt?: string;
+  lastLoginAt?: string | null;
 }
 
 // Auth response from backend
@@ -109,4 +120,8 @@ export interface CareerAnalysis {
   focusAreas: string[];
   readinessTimeline: string;
   generatedAt: string;
+  // Phase 3: Real analysis data from backend
+  jrScore?: number;
+  topRole?: string;
+  topRoleMatch?: number;
 }

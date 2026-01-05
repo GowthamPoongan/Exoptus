@@ -29,7 +29,7 @@ let GoogleSignin: any = null;
 let statusCodes: any = null;
 let isSuccessResponse: any = null;
 let isErrorWithCode: any = null;
-let googleSignInAvailable = false;
+let nativeGoogleAvailable = false;
 
 try {
   const googleSignInModule = require("@react-native-google-signin/google-signin");
@@ -37,11 +37,9 @@ try {
   statusCodes = googleSignInModule.statusCodes;
   isSuccessResponse = googleSignInModule.isSuccessResponse;
   isErrorWithCode = googleSignInModule.isErrorWithCode;
-  googleSignInAvailable = true;
+  nativeGoogleAvailable = true;
 } catch (e) {
-  console.log(
-    "⚠️ Google Sign-In native module not available (running in Expo Go?)"
-  );
+  // Native Google Sign-In not available - will use web OAuth fallback
 }
 
 const { width, height } = Dimensions.get("window");
@@ -70,11 +68,11 @@ const GoogleIcon = ({ size = 20 }: { size?: number }) => (
 
 export default function WelcomeScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isGoogleConfigured, setIsGoogleConfigured] = useState(false);
+  const [isNativeConfigured, setIsNativeConfigured] = useState(false);
   const { setUser } = useUserStore();
 
-  // Google OAuth configuration
-  const GOOGLE_AUTH_ENABLED = true; // ✅ Enabled
+  // Google OAuth is always enabled - native in dev builds, web in Expo Go
+  const GOOGLE_AUTH_ENABLED = true;
 
   // Animation values
   const logoOpacity = useSharedValue(0);
@@ -84,8 +82,8 @@ export default function WelcomeScreen() {
   const buttonsTranslateY = useSharedValue(30);
 
   useEffect(() => {
-    // Configure Google Sign-In if available
-    if (googleSignInAvailable && GoogleSignin) {
+    // Configure native Google Sign-In if available (dev build only)
+    if (nativeGoogleAvailable && GoogleSignin) {
       try {
         GoogleSignin.configure({
           webClientId:
@@ -93,10 +91,9 @@ export default function WelcomeScreen() {
           offlineAccess: true,
           scopes: ["profile", "email"],
         });
-        setIsGoogleConfigured(true);
-        console.log("✅ Google Sign-In configured");
+        setIsNativeConfigured(true);
       } catch (e) {
-        console.log("⚠️ Failed to configure Google Sign-In:", e);
+        // Failed to configure native - will fall back to web OAuth
       }
     }
 
@@ -115,96 +112,49 @@ export default function WelcomeScreen() {
     );
   }, []);
 
-  // Handle successful Google sign-in
-  const handleGoogleSignIn = async (idToken: string) => {
-    try {
-      console.log("🔄 Sending ID token to backend...");
-      const result = await authService.googleSignIn(idToken);
-
-      if (result.success && result.user) {
-        console.log("✅ Google sign-in successful");
-        setUser(result.user);
-        const route = authService.getRouteForUser(result.user);
-        console.log("🚀 Navigating to:", route);
-        router.replace(route);
-      } else {
-        console.log("❌ Google sign-in failed:", result.error);
-        Alert.alert("Sign In Failed", result.error || "Please try again");
-      }
-    } catch (error) {
-      console.error("❌ Error during sign in:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
-    }
+  // Handle successful Google sign-in (from either native or web OAuth)
+  const handleGoogleSuccess = async (user: any) => {
+    setUser(user);
+    const route = authService.getRouteForUser(user);
+    router.replace(route);
   };
 
-  const handleGooglePress = async () => {
-    if (isGoogleLoading) return;
-
-    // Check if native Google Sign-In is available
-    if (!googleSignInAvailable || !isGoogleConfigured) {
-      Alert.alert(
-        "Development Build Required",
-        "Native Google Sign-In requires a development build. You're currently running in Expo Go.\n\nPlease use the EXOPTUS app (not Expo Go) or use email sign-in.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    if (!GOOGLE_AUTH_ENABLED) {
-      Alert.alert(
-        "Coming Soon",
-        "Google Sign-In will be available soon. Please use email to continue.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    setIsGoogleLoading(true);
-    console.log("🔵 Starting Native Google Sign-In...");
-
+  // Native Google Sign-In (dev builds with native module)
+  const handleNativeGoogleSignIn = async () => {
     try {
-      // Check if Google Play Services are available (Android)
       await GoogleSignin.hasPlayServices({
         showPlayServicesUpdateDialog: true,
       });
 
-      // Sign in with native Google dialog - no browser, no redirects!
       const response = await GoogleSignin.signIn();
-
-      console.log("📱 Google Sign-In response:", response.type);
 
       if (isSuccessResponse(response)) {
         const { idToken } = response.data;
 
         if (idToken) {
-          console.log("✅ Got ID token from native sign-in");
-          await handleGoogleSignIn(idToken);
+          const result = await authService.googleSignIn(idToken);
+          if (result.success && result.user) {
+            await handleGoogleSuccess(result.user);
+          } else {
+            Alert.alert("Sign In Failed", result.error || "Please try again");
+          }
         } else {
-          console.log("❌ No ID token received");
-          Alert.alert(
-            "Error",
-            "Failed to get authentication token. Please try again."
-          );
+          Alert.alert("Error", "Failed to get authentication token.");
         }
-      } else {
-        console.log("⚠️ Sign-in was cancelled or failed");
       }
     } catch (error: any) {
-      console.error("❌ Google Sign-In error:", error);
-
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:
-            console.log("⚠️ User cancelled sign-in");
-            // Don't show alert for user cancellation
+            // User cancelled - silent
             break;
           case statusCodes.IN_PROGRESS:
-            console.log("⚠️ Sign-in already in progress");
+            // Already in progress - silent
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
             Alert.alert(
               "Google Play Services",
-              "Google Play Services is not available. Please update or install it.",
+              "Please update or install Google Play Services.",
               [{ text: "OK" }]
             );
             break;
@@ -215,10 +165,38 @@ export default function WelcomeScreen() {
             );
         }
       } else {
-        Alert.alert(
-          "Error",
-          "Failed to sign in with Google. Please try again."
-        );
+        Alert.alert("Error", "Failed to sign in with Google.");
+      }
+    }
+  };
+
+  // Web-based Google OAuth (Expo Go fallback)
+  const handleWebGoogleOAuth = async () => {
+    const result = await authService.startWebGoogleOAuth();
+
+    if (result.success) {
+      // Token was handled, get the user and route
+      const cachedUser = await authService.getCachedUser();
+      if (cachedUser) {
+        await handleGoogleSuccess(cachedUser);
+      }
+    } else if (result.error && result.error !== "Sign-in cancelled") {
+      Alert.alert("Sign In Failed", result.error);
+    }
+  };
+
+  const handleGooglePress = async () => {
+    if (isGoogleLoading) return;
+
+    setIsGoogleLoading(true);
+
+    try {
+      // Use native Google Sign-In if available (dev build)
+      if (nativeGoogleAvailable && isNativeConfigured) {
+        await handleNativeGoogleSignIn();
+      } else {
+        // Fallback to web OAuth (Expo Go / web)
+        await handleWebGoogleOAuth();
       }
     } finally {
       setIsGoogleLoading(false);

@@ -50,11 +50,8 @@ export default function RootLayout() {
   }, [rootNavigationState?.key]);
 
   const handleDeepLink = async (url: string) => {
-    console.log("📱 Deep link received:", url);
-
     // Parse the URL to extract params
     const parsed = Linking.parse(url);
-    console.log("📱 Parsed URL:", JSON.stringify(parsed, null, 2));
 
     // Extract token from URL
     let token: string | null = null;
@@ -74,7 +71,6 @@ export default function RootLayout() {
       parsed.path?.includes("google-callback") ||
       url.includes("google-callback");
     if (isGoogleCallback && token) {
-      console.log("📱 ✅ Google OAuth callback with token");
       // Import and use auth service to handle the callback
       const authService = require("../services/auth").default;
       const { useUserStore } = require("../store/userStore");
@@ -82,27 +78,23 @@ export default function RootLayout() {
       try {
         const result = await authService.handleGoogleCallback(token);
         if (result.success && result.user) {
-          console.log("✅ Google sign-in successful via deep link");
           useUserStore.getState().setUser(result.user);
           const route = authService.getRouteForUser(result.user);
           router.replace(route);
-        } else {
-          console.log("❌ Google sign-in failed:", result.error);
         }
       } catch (error) {
-        console.error("❌ Error handling Google callback:", error);
+        // Error handling Google callback
       }
       return;
     }
 
     // Check if this is a verify link (magic link)
     const isVerifyPath =
-      parsed.path?.includes("verify") || url.includes("/verify");
+      parsed.path?.includes("verify") ||
+      parsed.path?.includes("email") ||
+      url.includes("/verify") ||
+      url.includes("auth/email");
     if (isVerifyPath && token) {
-      console.log(
-        "📱 ✅ Navigating to verify with token:",
-        token.substring(0, 20) + "..."
-      );
       router.replace({
         pathname: "/(auth)/verifying",
         params: { token },
@@ -116,11 +108,8 @@ export default function RootLayout() {
       url.includes("access_token=") ||
       url.includes("code=")
     ) {
-      console.log("📱 OAuth params detected, ignoring");
       return;
     }
-
-    console.log("📱 ❌ Unhandled deep link");
   };
 
   // Load custom fonts if needed

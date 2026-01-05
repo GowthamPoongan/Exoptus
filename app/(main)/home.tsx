@@ -11,7 +11,7 @@
  * - Top bar with Exoptus branding (image), notifications & calendar
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -183,9 +183,35 @@ export default function HomeScreen() {
   const scrollY = useSharedValue(0);
   const lastScrollY = useSharedValue(0);
 
-  const { jrScore, notifications, profileSteps } = useDashboardStore();
-  // Get user name from store (fallback to "User" if not set)
-  const userName = useUserStore((state) => state.user?.name) || "User";
+  const {
+    jrScore,
+    notifications,
+    profileSteps,
+    fetchUserDashboard,
+    isLoading,
+  } = useDashboardStore();
+
+  // Get user name from store - use name from onboarding store as fallback
+  // "Explorer" is the fallback if no name is set anywhere
+  const user = useUserStore((state) => state.user);
+  const storeName = useUserStore((state) => state.name);
+  const hydrateUser = useUserStore((state) => state.hydrateUser);
+  const isHydrated = useUserStore((state) => state.isHydrated);
+
+  // Derive display name with proper fallback chain
+  const userName = user?.name || storeName || "Explorer";
+
+  // Hydrate user identity on mount
+  useEffect(() => {
+    if (!isHydrated) {
+      hydrateUser();
+    }
+  }, [isHydrated, hydrateUser]);
+
+  // PHASE 3: Fetch real dashboard data on mount
+  useEffect(() => {
+    fetchUserDashboard();
+  }, []);
 
   // Instagram-style scroll handler - hide on scroll down, show on scroll up
   const scrollHandler = useAnimatedScrollHandler({
@@ -222,13 +248,18 @@ export default function HomeScreen() {
     };
   });
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTimeout(() => {
+    try {
+      // Actually fetch fresh data from backend
+      await fetchUserDashboard();
+    } catch (error) {
+      console.error("Refresh failed:", error);
+    } finally {
       setRefreshing(false);
-    }, 1500);
-  }, []);
+    }
+  }, [fetchUserDashboard]);
 
   const handleOpenCalendar = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

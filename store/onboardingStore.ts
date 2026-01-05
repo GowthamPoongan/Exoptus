@@ -3,6 +3,11 @@
  *
  * Manages the conversational onboarding flow state.
  * Tracks progress, answers, and current position.
+ *
+ * PHASE 2: Source of truth for onboarding state.
+ * - Persists to AsyncStorage for resume capability
+ * - Messages and currentStep are persisted
+ * - Frontend reads from this store, not local state
  */
 
 import { create } from "zustand";
@@ -19,15 +24,54 @@ interface OnboardingState {
   isComplete: boolean;
   careerAnalysis: CareerAnalysis | null;
 
+  // User data collected during onboarding (for resume capability)
+  userData: {
+    name: string;
+    status: "Student" | "Graduate" | "Working" | null;
+    gender: string;
+    age: number | null;
+    state: string;
+    city: string;
+    college: string;
+    course: string;
+    stream: string;
+    semester: number | null;
+    passoutYear: number | null;
+    subjects: string[];
+    cgpa: number | null;
+    careerAspiration: string;
+    selectedRole: any;
+  };
+
   // Actions
   setCurrentQuestion: (questionId: string) => void;
   addAnswer: (answer: OnboardingAnswer) => void;
   addMessage: (message: ChatMessage) => void;
+  setMessages: (messages: ChatMessage[]) => void;
   setProgress: (progress: number) => void;
   setCareerAnalysis: (analysis: CareerAnalysis) => void;
+  updateUserData: (data: Partial<OnboardingState["userData"]>) => void;
   completeOnboarding: () => void;
   resetOnboarding: () => void;
 }
+
+const initialUserData = {
+  name: "",
+  status: null as "Student" | "Graduate" | "Working" | null,
+  gender: "",
+  age: null as number | null,
+  state: "",
+  city: "",
+  college: "",
+  course: "",
+  stream: "",
+  semester: null as number | null,
+  passoutYear: null as number | null,
+  subjects: [] as string[],
+  cgpa: null as number | null,
+  careerAspiration: "",
+  selectedRole: null,
+};
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
@@ -39,6 +83,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       progress: 0,
       isComplete: false,
       careerAnalysis: null,
+      userData: { ...initialUserData },
 
       // Set current question
       setCurrentQuestion: (questionId) =>
@@ -58,6 +103,12 @@ export const useOnboardingStore = create<OnboardingState>()(
           messages: [...state.messages, message],
         })),
 
+      // Set all messages (for restore)
+      setMessages: (messages) =>
+        set({
+          messages,
+        }),
+
       // Update progress bar
       setProgress: (progress) =>
         set({
@@ -69,6 +120,12 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({
           careerAnalysis: analysis,
         }),
+
+      // Update user data collected during onboarding
+      updateUserData: (data) =>
+        set((state) => ({
+          userData: { ...state.userData, ...data },
+        })),
 
       // Mark onboarding as complete
       completeOnboarding: () =>
@@ -86,11 +143,22 @@ export const useOnboardingStore = create<OnboardingState>()(
           progress: 0,
           isComplete: false,
           careerAnalysis: null,
+          userData: { ...initialUserData },
         }),
     }),
     {
       name: "exoptus-onboarding-store",
       storage: createJSONStorage(() => AsyncStorage),
+      // Persist all fields for resume capability
+      partialize: (state) => ({
+        currentQuestionId: state.currentQuestionId,
+        answers: state.answers,
+        messages: state.messages,
+        progress: state.progress,
+        isComplete: state.isComplete,
+        careerAnalysis: state.careerAnalysis,
+        userData: state.userData,
+      }),
     }
   )
 );

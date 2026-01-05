@@ -11,11 +11,10 @@ import prisma from "./prisma";
 
 // Define onboarding steps in order
 export const ONBOARDING_STEPS = [
-  "intro_carousel", // Step 1: Intro carousel (might be handled client-side)
-  "chat", // Step 2: Onboarding chat
-  "evaluation_progress", // Step 3: Evaluation
-  "analysis_results", // Step 4: Show results
-  "analysis_complete", // Step 5: Complete
+  "chat", // Step 1: Onboarding chat (main experience)
+  "evaluation_progress", // Step 2: Evaluation
+  "analysis_results", // Step 3: Show results
+  "analysis_complete", // Step 4: Complete
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
@@ -70,12 +69,6 @@ export async function updateOnboardingProgress(
     data: updateData,
   });
 
-  console.log(
-    `📝 Onboarding progress: ${user.email} completed "${completedStep}" → ${
-      isComplete ? "✅ COMPLETE" : `next: "${nextStep}"`
-    }`
-  );
-
   return user;
 }
 
@@ -97,14 +90,13 @@ export function getRedirectPath(user: {
 
   // Map onboarding steps to routes
   const stepRouteMap: Record<string, string> = {
-    intro_carousel: "/(onboarding)/intro-carousel",
     chat: "/(onboarding)/chat",
     evaluation_progress: "/(onboarding)/evaluation-progress",
     analysis_results: "/(onboarding)/analysis-results",
     analysis_complete: "/(onboarding)/analysis-complete",
   };
 
-  return stepRouteMap[step] || "/(onboarding)/intro-carousel";
+  return stepRouteMap[step] || "/(onboarding)/chat";
 }
 
 /**
@@ -128,7 +120,6 @@ export async function addAuthProvider(
 
   // Check if provider already linked
   if (currentProviders.includes(provider)) {
-    console.log(`ℹ️  Provider "${provider}" already linked for ${user.email}`);
     return user;
   }
 
@@ -148,10 +139,6 @@ export async function addAuthProvider(
     where: { id: userId },
     data: updateData,
   });
-
-  console.log(
-    `🔗 Account linked: ${updatedUser.email} → added "${provider}" (now has: ${updatedProviders})`
-  );
 
   return updatedUser;
 }

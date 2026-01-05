@@ -6,9 +6,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Use SQLite for local development to avoid needing PostgreSQL.
+// PostgreSQL for Supabase
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ datasource db {
 // USERS TABLE - Core Identity
 // ============================================
 // One row = one human
-// Email is the primary identity key
+// Email is the primary identity keyadb reverse tcp:8081 tcp:8081
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
@@ -54,6 +54,7 @@ model User {
   onboardingProfile OnboardingProfile?
   userFeedback     UserFeedback[]
   profile          Profile?
+  careerAnalysis   CareerAnalysis?
 
   @@map("users")
 }
@@ -160,6 +161,8 @@ model OnboardingProfile {
   // ============================================
   // PROFILE TABLE - Simple user profile (separate from onboarding)
   // ============================================
+  // Stores key identity data extracted from onboarding
+  // This is the "who they say they are" layer
   model Profile {
     id        String   @id @default(uuid())
     userId    String   @unique @map("user_id")
@@ -169,6 +172,7 @@ model OnboardingProfile {
     course    String?
     year      Int?
     phone     String?
+    goals     String?  // JSON array of career goals
 
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
@@ -203,4 +207,218 @@ model UserFeedback {
   @@index([userId])
   @@index([createdAt])
   @@map("user_feedback")
+}
+
+// ============================================
+// ONBOARDING ANSWERS TABLE - PHASE 3
+// ============================================
+// Persists user responses during onboarding conversation
+// Enables: "User onboarding responses are persisted server-side"
+model OnboardingAnswer {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  
+  // Question data
+  questionId  String   @map("question_id")  // e.g., "ask_name", "ask_status"
+  answer      String                        // User's response (JSON for multi-select)
+  
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([questionId])
+  @@map("onboarding_answers")
+}
+
+// ============================================
+// CAREER ANALYSIS TABLE - JR Score & Results
+// ============================================
+// Stores analysis results for user profile
+// JR Score breakdown from Gemini AI with validation
+model CareerAnalysis {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  
+  // JR Score & Metrics (0-100 scale)
+  jrScore   Float    @default(0) // Overall JR score
+  skillGap  Int      @default(0) // Percentage (0-100)
+  
+  // JR Score Breakdown (Gemini AI calculated, 0-25 each)
+  jrConfidence         Int?     @map("jr_confidence") // Career path certainty (0-25)
+  jrClarity            Int?     @map("jr_clarity") // Goal clarity (0-25)
+  jrConsistency        Int?     @map("jr_consistency") // Skills-goals alignment (0-25)
+  jrExecutionReadiness Int?     @map("jr_execution_readiness") // Action readiness (0-25)
+  jrRiskFlags          String?  @map("jr_risk_flags") // JSON array of risk flags
+  jrReasoning          String?  @map("jr_reasoning") // AI reasoning for score
+  jrSource             String?  @map("jr_source") // 'gemini' | 'fallback' | 'cached'
+  
+  // Analysis Results
+  matchedRoleIds      String?  @map("matched_role_ids") // Comma-separated role IDs
+  topRole             String?  @map("top_role") // Best matched role name
+  topRoleMatch        Float?   @map("top_role_match") // Match percentage
+  
+  // Growth Projection
+  growthMatrix        String?  @map("growth_matrix") // JSON: {skill: {current: x, target: y}}
+  estimatedMonths     Int?     @map("estimated_months") // Months to reach ideal JR
+  
+  // Skill Analysis
+  acquiredSkills      String?  @map("acquired_skills") // JSON array of skills user has
+  missingSkills       String?  @map("missing_skills") // JSON array of priority skills to learn
+  skillsPriority      String?  @map("skills_priority") // JSON array sorted by importance
+  
+  // Metadata
+  generatedAt        DateTime @default(now()) @map("generated_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([jrScore])
+  @@map("career_analysis")
+}
+
+// ============================================
+// ROLES TABLE - Job Roles with Requirements
+// ============================================
+// Database of job roles and required skills
+model Role {
+  id                String   @id @default(uuid())
+  title             String   @unique
+  description       String?
+  
+  // Salary Range
+  salaryMin         Float?   @map("salary_min")
+  salaryMax         Float?   @map("salary_max")
+  salaryCurrency    String   @default("USD") @map("salary_currency")
+  
+  // Requirements
+  skillsRequired    String   @map("skills_required") // JSON array
+  experienceYears   Int?     @map("experience_years")
+  educationLevel    String?  @map("education_level") // "High School", "Bachelor's", "Master's"
+  
+  // Metadata
+  category          String?  // "Frontend", "Backend", "Data", etc.
+  difficulty        String   @default("medium") // "beginner", "intermediate", "advanced"
+  demandLevel       String   @default("high") // "low", "medium", "high"
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  jobs              Job[]
+  
+  @@index([category])
+  @@index([difficulty])
+  @@map("roles")
+}
+
+// ============================================
+// JOBS TABLE - Job Listings
+// ============================================
+// Individual job postings
+model Job {
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  company           String
+  location          String?
+  
+  // Salary
+  salaryMin         Float?   @map("salary_min")
+  salaryMax         Float?   @map("salary_max")
+  
+  // Link to Role
+  roleId            String?  @map("role_id")
+  role              Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  
+  // Application tracking
+  postedAt          DateTime @default(now()) @map("posted_at")
+  expiresAt         DateTime? @map("expires_at")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  @@index([roleId])
+  @@index([company])
+  @@index([postedAt])
+  @@map("jobs")
+}
+
+// ============================================
+// ADMIN USERS TABLE - Separate Admin Storage
+// ============================================
+// Stores admin user credentials and info separately
+model AdminUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String   // Hashed with bcrypt
+  role      String   @default("admin") // "admin", "super_admin", "moderator"
+  
+  // Account Status
+  isActive  Boolean  @default(true) @map("is_active")
+  lastLoginAt DateTime? @map("last_login_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  sessions  AdminSession[]
+  logs      AdminLog[]
+  
+  @@index([email])
+  @@map("admin_users")
+}
+
+// ============================================
+// ADMIN SESSIONS TABLE - Admin Authentication
+// ============================================
+// Track admin login sessions separately from user sessions
+model AdminSession {
+  id        String   @id @default(uuid())
+  adminId   String   @map("admin_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  
+  // Session metadata
+  deviceInfo String? @map("device_info")
+  ipAddress  String? @map("ip_address")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  
+  @@index([adminId])
+  @@index([token])
+  @@map("admin_sessions")
+}
+
+// ============================================
+// ADMIN LOGS TABLE - Audit Trail
+// ============================================
+// Track all admin actions for security and compliance
+model AdminLog {
+  id        String   @id @default(uuid())
+  adminId   String   @map("admin_id")
+  
+  // Action details
+  action    String   // "view_users", "delete_user", "export_data", etc.
+  details   String?  // JSON string with additional context
+  
+  // Request metadata
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_logs")
 }

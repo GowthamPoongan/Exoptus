@@ -111,7 +111,7 @@ export default function SignupEmailScreen() {
       // Save email locally first
       saveEmail(email);
 
-      // Call API to send magic link
+      // Call API to send magic link (web source)
       const result = await authService.sendMagicLink(email);
 
       if (result.success) {

@@ -3,13 +3,17 @@
  *
  * Central API client for backend communication.
  * Handles authentication, request/response intercepting, and error handling.
+ *
+ * PRODUCTION MODE: All requests go to actual backend.
+ * Authentication is REQUIRED - no bypasses.
  */
 
-// Use your computer's IP address for mobile testing
-// Change this to your actual IP (run: ipconfig | Select-String "IPv4")
-const DEV_API_URL = "http://10.175.216.47:3000";
+// Use your computer's local network IP address for mobile testing
+// Find your IP: Run `ipconfig` on Windows or `ifconfig` on Mac/Linux
+// Then set EXPO_PUBLIC_API_URL in your .env file
+const DEV_API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || DEV_API_URL;
+export const API_URL = DEV_API_URL;
 
 const API_BASE_URL = API_URL;
 
@@ -39,6 +43,11 @@ class ApiService {
     this.authToken = token;
   }
 
+  // Get base URL (for OAuth flows that need server URL)
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   // Build headers
   private getHeaders(
     customHeaders?: Record<string, string>
@@ -63,18 +72,13 @@ class ApiService {
     const { method = "GET", headers, body } = config;
 
     try {
-      console.log(`📡 API Request: ${method} ${this.baseUrl}${endpoint}`);
-
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method,
         headers: this.getHeaders(headers),
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      console.log(`📡 API Response: ${response.status} ${response.statusText}`);
-
       const data = await response.json();
-      console.log(`📡 API Data:`, JSON.stringify(data).substring(0, 200));
 
       if (!response.ok) {
         return {
@@ -88,7 +92,6 @@ class ApiService {
         data,
       };
     } catch (error: any) {
-      console.error("❌ API Error:", error.message);
       return {
         success: false,
         error: "Network error. Please check your connection.",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
@@ -7,9 +7,13 @@ import Animated, {
   withTiming,
   withDelay,
   withSequence,
+  withRepeat,
   Easing,
   interpolate,
   FadeIn,
+  runOnJS,
+  useDerivedValue,
+  useAnimatedReaction,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -35,8 +39,11 @@ const STATUS_ITEMS = [
 
 export default function EvaluationProgress() {
   const router = useRouter();
-  const [percentage, setPercentage] = useState(0);
+  // Use shared value for percentage to avoid re-render storm
+  const percentageValue = useSharedValue(0);
   const [completedItems, setCompletedItems] = useState<number[]>([]);
+  // Only update display text at key thresholds (not every frame)
+  const [displayPercentage, setDisplayPercentage] = useState(0);
 
   const progressWidth = useSharedValue(0);
   const cardOpacity = useSharedValue(0);
@@ -53,77 +60,99 @@ export default function EvaluationProgress() {
     }));
   }, []);
 
+  // Callback to update display (called sparingly from worklet)
+  const updateDisplayPercentage = useCallback((value: number) => {
+    setDisplayPercentage(Math.round(value));
+  }, []);
+
+  const markItemComplete = useCallback((index: number) => {
+    setCompletedItems((prev) =>
+      prev.includes(index) ? prev : [...prev, index]
+    );
+  }, []);
+
+  const navigateToComplete = useCallback(() => {
+    router.push("/(onboarding)/analysis-complete" as any);
+  }, [router]);
+
+  // React to percentage changes on UI thread, update display sparingly
+  useAnimatedReaction(
+    () => Math.round(percentageValue.value),
+    (current, previous) => {
+      // Only update display every 5% to minimize re-renders
+      if (
+        previous === null ||
+        Math.floor(current / 5) !== Math.floor((previous || 0) / 5)
+      ) {
+        runOnJS(updateDisplayPercentage)(current);
+      }
+
+      // Complete status items at thresholds
+      if (current >= 20 && (previous || 0) < 20) runOnJS(markItemComplete)(0);
+      if (current >= 40 && (previous || 0) < 40) runOnJS(markItemComplete)(1);
+      if (current >= 60 && (previous || 0) < 60) runOnJS(markItemComplete)(2);
+      if (current >= 80 && (previous || 0) < 80) runOnJS(markItemComplete)(3);
+      if (current >= 97 && (previous || 0) < 97) runOnJS(markItemComplete)(4);
+
+      // Navigate when complete
+      if (current >= 100 && (previous || 0) < 100) {
+        runOnJS(navigateToComplete)();
+      }
+    },
+    [updateDisplayPercentage, markItemComplete, navigateToComplete]
+  );
+
   useEffect(() => {
-    let currentPercent = 0;
-    let interval: ReturnType<typeof setInterval> | null = null;
-
-    const animatePercentage = () => {
-      interval = setInterval(() => {
-        if (currentPercent >= 100) {
-          if (interval) clearInterval(interval);
-          setTimeout(() => {
-            router.push("/(onboarding)/analysis-complete" as any);
-          }, 800);
-          return;
-        }
-
-        // Non-linear easing: slow start, fast middle, slow end
-        let increment = 1;
-        if (currentPercent < 15) {
-          increment = 0.4;
-        } else if (currentPercent < 60) {
-          increment = 1.5;
-        } else if (currentPercent < 85) {
-          increment = 1;
-        } else {
-          increment = 0.25;
-        }
-
-        currentPercent = Math.min(100, currentPercent + increment);
-        setPercentage(Math.round(currentPercent));
-
-        progressWidth.value = withTiming(currentPercent / 100, {
-          duration: 80,
-          easing: Easing.linear,
-        });
-
-        // Complete status items at thresholds
-        if (currentPercent >= 20 && !completedItems.includes(0)) {
-          setCompletedItems((prev) => [...prev, 0]);
-        }
-        if (currentPercent >= 40 && !completedItems.includes(1)) {
-          setCompletedItems((prev) => [...prev, 1]);
-        }
-        if (currentPercent >= 60 && !completedItems.includes(2)) {
-          setCompletedItems((prev) => [...prev, 2]);
-        }
-        if (currentPercent >= 80 && !completedItems.includes(3)) {
-          setCompletedItems((prev) => [...prev, 3]);
-        }
-        if (currentPercent >= 97 && !completedItems.includes(4)) {
-          setCompletedItems((prev) => [...prev, 4]);
-        }
-      }, 45);
-    };
-
+    // Animate card entrance
     cardOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
 
-    // Pulsing glow effect
-    const pulseGlow = () => {
-      glowOpacity.value = withSequence(
+    // Pulsing glow - pure Reanimated, no setInterval
+    glowOpacity.value = withRepeat(
+      withSequence(
         withTiming(0.6, { duration: 1500 }),
         withTiming(0.3, { duration: 1500 })
-      );
-    };
-    pulseGlow();
-    const glowInterval = setInterval(pulseGlow, 3000);
+      ),
+      -1, // infinite
+      false
+    );
 
-    setTimeout(animatePercentage, 600);
+    // Animate percentage from 0 to 100 over ~6 seconds
+    // Non-linear: slow start, fast middle, slow end using custom easing
+    setTimeout(() => {
+      // Phase 1: 0-15% slow (1.5s)
+      percentageValue.value = withTiming(15, {
+        duration: 1500,
+        easing: Easing.out(Easing.quad),
+      });
+      progressWidth.value = withTiming(0.15, {
+        duration: 1500,
+        easing: Easing.out(Easing.quad),
+      });
 
-    return () => {
-      if (interval) clearInterval(interval);
-      clearInterval(glowInterval);
-    };
+      // Phase 2: 15-85% fast (2.5s)
+      setTimeout(() => {
+        percentageValue.value = withTiming(85, {
+          duration: 2500,
+          easing: Easing.inOut(Easing.quad),
+        });
+        progressWidth.value = withTiming(0.85, {
+          duration: 2500,
+          easing: Easing.inOut(Easing.quad),
+        });
+      }, 1500);
+
+      // Phase 3: 85-100% slow (2s)
+      setTimeout(() => {
+        percentageValue.value = withTiming(100, {
+          duration: 2000,
+          easing: Easing.in(Easing.quad),
+        });
+        progressWidth.value = withTiming(1, {
+          duration: 2000,
+          easing: Easing.in(Easing.quad),
+        });
+      }, 4000);
+    }, 600);
   }, []);
 
   const progressBarStyle = useAnimatedStyle(() => ({
@@ -177,7 +206,7 @@ export default function EvaluationProgress() {
       <View style={styles.content}>
         {/* Percentage Display */}
         <View style={styles.percentageContainer}>
-          <Text style={styles.percentage}>{percentage}%</Text>
+          <Text style={styles.percentage}>{displayPercentage}%</Text>
 
           <Text style={styles.mainText}>We're analyzing your profile</Text>
 

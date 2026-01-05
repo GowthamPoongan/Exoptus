@@ -8,14 +8,22 @@
  * - JWT session management
  */
 
+import dotenv from "dotenv";
+
+// Load environment variables first so imported modules see them
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
-
-// Load environment variables
-dotenv.config();
+import onboardingRoutes from "./routes/onboarding";
+import rolesRoutes from "./routes/roles";
+import jobsRoutes from "./routes/jobs";
+import adminRoutes from "./routes/admin";
+import adminAuthRoutes from "./routes/admin-auth";
+import communityRoutes from "./routes/community";
+import dashboardRoutes from "./routes/dashboard";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -32,6 +40,13 @@ app.get("/health", (req, res) => {
 // Routes
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
+app.use("/onboarding", onboardingRoutes);
+app.use("/roles", rolesRoutes);
+app.use("/jobs", jobsRoutes);
+app.use("/admin", adminRoutes);
+app.use("/admin/auth", adminAuthRoutes);
+app.use("/community", communityRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 // Error handler
 app.use(
@@ -53,7 +68,7 @@ app.use(
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 EXOPTUS Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📱 Mobile access: http://10.175.216.47:${PORT}`);
+  console.log(`📱 Network access: http://0.0.0.0:${PORT}`);
 });
 
 export default app;

@@ -3,11 +3,17 @@
  *
  * Global state management for dashboard data using Zustand.
  * Handles JR Score, tasks, roadmap progress, and UI state.
+ *
+ * PHASE 2: Store mirrors API state, not defaults.
+ * - fetchDashboard() loads data from backend
+ * - No more hardcoded mock data
+ * - Store acts as cache for API responses
  */
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "../services/api";
 
 // Types
 export interface Task {
@@ -53,221 +59,202 @@ export interface Notification {
 }
 
 interface DashboardState {
-  // JR Score
+  // Data from API
   jrScore: number;
   jrScoreHistory: { date: string; score: number }[];
-
-  // Profile completion
   profileSteps: ProfileStep[];
   currentProfileStep: number;
-
-  // Tasks
   tasks: Task[];
-
-  // Roadmap
   roadmapLevels: RoadmapLevel[];
-
-  // Notifications
   notifications: Notification[];
   unreadCount: number;
+
+  // PHASE 3: Core dashboard data from /user/dashboard
+  topRole: string | null;
+  topRoleMatch: number | null;
+  profileCompletion: number;
+  missingSkills: string[];
+  estimatedMonths: number | null;
+
+  // Loading/Error states (PHASE 2 requirement)
+  isLoading: boolean;
+  error: string | null;
+  lastFetched: string | null;
 
   // UI State
   isCalendarOpen: boolean;
   selectedDate: string;
   activeTab: string;
 
-  // Actions
+  // API Actions
+  fetchDashboard: () => Promise<void>;
+  fetchUserDashboard: () => Promise<void>; // PHASE 3: Simple dashboard fetch
+  refreshDashboard: () => Promise<void>;
+
+  // Local Actions
   setJRScore: (score: number) => void;
   addJRScoreHistory: (score: number) => void;
-
   setProfileSteps: (steps: ProfileStep[]) => void;
   completeProfileStep: (stepId: string) => void;
-
   addTask: (task: Omit<Task, "id" | "createdAt">) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTask: (id: string) => void;
-
   setRoadmapLevels: (levels: RoadmapLevel[]) => void;
   completeRoadmapItem: (levelId: string, itemId: string) => void;
-
   addNotification: (
     notification: Omit<Notification, "id" | "createdAt">
   ) => void;
   markNotificationRead: (id: string) => void;
   clearNotifications: () => void;
-
   setCalendarOpen: (open: boolean) => void;
   setSelectedDate: (date: string) => void;
   setActiveTab: (tab: string) => void;
 }
 
-// Default profile steps
-const defaultProfileSteps: ProfileStep[] = [
-  { id: "basic_info", label: "Basic Info", completed: true },
-  { id: "education", label: "Education", completed: true },
-  { id: "skills", label: "Skills", completed: true },
-  { id: "summary", label: "Writing summary...", completed: false },
-  { id: "preferences", label: "Preferences", completed: false },
-];
-
-// Default roadmap levels
-const defaultRoadmapLevels: RoadmapLevel[] = [
-  {
-    id: "foundation",
-    title: "Foundation",
-    description: "Build your core skills and understanding",
-    status: "in_progress",
-    order: 1,
-    items: [
-      {
-        id: "f1",
-        title: "Complete profile assessment",
-        description: "Help us understand your current skills and goals",
-        effort: "low",
-        skillImpact: 3,
-        completed: true,
-      },
-      {
-        id: "f2",
-        title: "Set career goals",
-        description: "Define where you want to be in 1-3 years",
-        effort: "medium",
-        skillImpact: 5,
-        completed: true,
-      },
-      {
-        id: "f3",
-        title: "Identify skill gaps",
-        description: "Understand what you need to learn",
-        effort: "low",
-        skillImpact: 4,
-        completed: false,
-      },
-    ],
-  },
-  {
-    id: "intermediate",
-    title: "Intermediate",
-    description: "Develop practical experience and portfolio",
-    status: "locked",
-    order: 2,
-    items: [
-      {
-        id: "i1",
-        title: "Build first project",
-        description: "Create a portfolio-worthy project",
-        effort: "high",
-        skillImpact: 8,
-        completed: false,
-      },
-      {
-        id: "i2",
-        title: "Learn industry tools",
-        description: "Master tools used in your target role",
-        effort: "medium",
-        skillImpact: 6,
-        completed: false,
-      },
-    ],
-  },
-  {
-    id: "industry_ready",
-    title: "Industry Ready",
-    description: "Prepare for real job applications",
-    status: "locked",
-    order: 3,
-    items: [
-      {
-        id: "ir1",
-        title: "Optimize resume",
-        description: "Create an ATS-friendly resume",
-        effort: "medium",
-        skillImpact: 7,
-        completed: false,
-      },
-      {
-        id: "ir2",
-        title: "Practice interviews",
-        description: "Mock interviews and preparation",
-        effort: "high",
-        skillImpact: 9,
-        completed: false,
-      },
-    ],
-  },
-  {
-    id: "advanced",
-    title: "Advanced",
-    description: "Stand out from the competition",
-    status: "locked",
-    order: 4,
-    items: [
-      {
-        id: "a1",
-        title: "Build online presence",
-        description: "LinkedIn, portfolio, GitHub optimization",
-        effort: "medium",
-        skillImpact: 6,
-        completed: false,
-      },
-      {
-        id: "a2",
-        title: "Network strategically",
-        description: "Connect with industry professionals",
-        effort: "high",
-        skillImpact: 8,
-        completed: false,
-      },
-    ],
-  },
-];
-
-// Sample notifications
-const defaultNotifications: Notification[] = [
-  {
-    id: "1",
-    title: "Welcome to EXOPTUS!",
-    message:
-      "Your career journey begins here. Complete your profile to get personalized recommendations.",
-    read: false,
-    createdAt: new Date().toISOString(),
-    type: "info",
-  },
-  {
-    id: "2",
-    title: "New skill assessment available",
-    message: "Take the quick assessment to update your JR Score.",
-    read: false,
-    createdAt: new Date().toISOString(),
-    type: "action",
-  },
-];
+// Default empty state (no mock data)
+const emptyProfileSteps: ProfileStep[] = [];
+const emptyRoadmapLevels: RoadmapLevel[] = [];
+const emptyNotifications: Notification[] = [];
 
 export const useDashboardStore = create<DashboardState>()(
   persist(
     (set, get) => ({
-      // Initial state
-      jrScore: 78,
-      jrScoreHistory: [
-        { date: "2025-12-20", score: 65 },
-        { date: "2025-12-21", score: 68 },
-        { date: "2025-12-22", score: 72 },
-        { date: "2025-12-23", score: 74 },
-        { date: "2025-12-24", score: 76 },
-        { date: "2025-12-25", score: 78 },
-      ],
-      profileSteps: defaultProfileSteps,
-      currentProfileStep: 3,
+      // Initial state - empty until API loads
+      jrScore: 0,
+      jrScoreHistory: [],
+      profileSteps: emptyProfileSteps,
+      currentProfileStep: 0,
       tasks: [],
-      roadmapLevels: defaultRoadmapLevels,
-      notifications: defaultNotifications,
-      unreadCount: 2,
+      roadmapLevels: emptyRoadmapLevels,
+      notifications: emptyNotifications,
+      unreadCount: 0,
+
+      // PHASE 3: Core dashboard data
+      topRole: null,
+      topRoleMatch: null,
+      profileCompletion: 0,
+      missingSkills: [],
+      estimatedMonths: null,
+
+      // Loading/Error states
+      isLoading: false,
+      error: null,
+      lastFetched: null,
+
+      // UI State
       isCalendarOpen: false,
       selectedDate: new Date().toISOString().split("T")[0],
       activeTab: "home",
 
-      // Actions
+      // ============================================
+      // API ACTIONS
+      // ============================================
+
+      fetchDashboard: async () => {
+        // Skip if already loading
+        if (get().isLoading) return;
+
+        set({ isLoading: true, error: null });
+
+        try {
+          const response = await api.get<{
+            data: {
+              jrScore: number;
+              jrScoreHistory: { date: string; score: number }[];
+              profileSteps: ProfileStep[];
+              currentProfileStep: number;
+              roadmapLevels: RoadmapLevel[];
+              notifications: Notification[];
+              tasks: Task[];
+            };
+          }>("/dashboard");
+
+          if (response.success && response.data?.data) {
+            const data = response.data.data;
+            set({
+              jrScore: data.jrScore,
+              jrScoreHistory: data.jrScoreHistory,
+              profileSteps: data.profileSteps,
+              currentProfileStep: data.currentProfileStep,
+              roadmapLevels: data.roadmapLevels,
+              notifications: data.notifications,
+              unreadCount: data.notifications.filter((n) => !n.read).length,
+              tasks: data.tasks || [],
+              isLoading: false,
+              lastFetched: new Date().toISOString(),
+            });
+          } else {
+            set({
+              isLoading: false,
+              error: response.error || "Failed to fetch dashboard",
+            });
+          }
+        } catch (err: any) {
+          console.error("Dashboard fetch error:", err);
+          set({
+            isLoading: false,
+            error: err.message || "Network error",
+          });
+        }
+      },
+
+      refreshDashboard: async () => {
+        // Force refresh even if recently fetched
+        set({ lastFetched: null });
+        await get().fetchDashboard();
+      },
+
+      // PHASE 3: Simple dashboard fetch from /user/dashboard
+      // Returns: jrScore, topRole, profileCompletion - proving data flow
+      fetchUserDashboard: async () => {
+        if (get().isLoading) return;
+
+        set({ isLoading: true, error: null });
+
+        try {
+          const response = await api.get<{
+            data: {
+              jrScore: number;
+              topRole: string | null;
+              topRoleMatch: number | null;
+              profileCompletion: number;
+              missingSkills: string[];
+              estimatedMonths: number | null;
+            };
+          }>("/user/dashboard");
+
+          if (response.success && response.data?.data) {
+            const data = response.data.data;
+            set({
+              jrScore: data.jrScore,
+              topRole: data.topRole,
+              topRoleMatch: data.topRoleMatch,
+              profileCompletion: data.profileCompletion,
+              missingSkills: data.missingSkills,
+              estimatedMonths: data.estimatedMonths,
+              isLoading: false,
+              lastFetched: new Date().toISOString(),
+            });
+          } else {
+            set({
+              isLoading: false,
+              error: response.error || "Failed to fetch user dashboard",
+            });
+          }
+        } catch (err: any) {
+          console.error("User dashboard fetch error:", err);
+          set({
+            isLoading: false,
+            error: err.message || "Network error",
+          });
+        }
+      },
+
+      // ============================================
+      // LOCAL ACTIONS (for UI optimistic updates)
+      // ============================================
+
       setJRScore: (score) => set({ jrScore: score }),
 
       addJRScoreHistory: (score) =>
@@ -394,6 +381,7 @@ export const useDashboardStore = create<DashboardState>()(
         tasks: state.tasks,
         roadmapLevels: state.roadmapLevels,
         selectedDate: state.selectedDate,
+        lastFetched: state.lastFetched,
       }),
     }
   )

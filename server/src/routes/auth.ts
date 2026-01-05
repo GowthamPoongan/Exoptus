@@ -2,7 +2,7 @@
  * Authentication Routes
  *
  * Handles:
- * - Email magic link flow
+ * - Email magic link flow (production-ready with Resend)
  * - Google OAuth flow
  * - Account linking
  * - Session management
@@ -14,11 +14,12 @@ import prisma from "../lib/prisma";
 import {
   generateToken,
   generateSecureToken,
+  hashToken,
   getMagicLinkExpiry,
   getSessionExpiry,
   verifyToken,
 } from "../lib/jwt";
-import { sendMagicLinkEmail } from "../lib/email";
+import { sendMagicLinkEmail, canSendMagicLink } from "../lib/email";
 import { verifyGoogleToken } from "../lib/google";
 import {
   getRedirectPath,
@@ -42,32 +43,20 @@ router.post("/email/start", async (req: Request, res: Response) => {
     const { email } = emailStartSchema.parse(req.body);
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if user exists, create if not
-    let user: any;
-    try {
-      user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
+    // Check rate limiting - prevent spam
+    const throttleCheck = await canSendMagicLink(normalizedEmail, prisma);
+    if (!throttleCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: `Please wait ${throttleCheck.waitSeconds} seconds before requesting another link`,
+        retryAfter: throttleCheck.waitSeconds,
       });
-    } catch (prismaErr) {
-      console.error(
-        "Prisma findUnique error (email/start):",
-        normalizedEmail,
-        prismaErr
-      );
-      // Fallback: try findFirst in case of schema/client mismatch
-      try {
-        user = await prisma.user.findFirst({
-          where: { email: normalizedEmail },
-        });
-      } catch (fallbackErr) {
-        console.error(
-          "Prisma findFirst fallback failed (email/start):",
-          normalizedEmail,
-          fallbackErr
-        );
-        throw prismaErr;
-      }
     }
+
+    // Check if user exists, create if not
+    let user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     if (!user) {
       // Create new user
@@ -78,34 +67,48 @@ router.post("/email/start", async (req: Request, res: Response) => {
           createdWith: "email",
           emailVerified: false,
           onboardingCompleted: false,
-          onboardingStep: ONBOARDING_STEPS[0], // Start at first step
+          onboardingStep: ONBOARDING_STEPS[0],
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New user created: ${normalizedEmail}`);
     }
 
-    // Generate magic link token
-    const token = generateSecureToken();
+    // Generate secure magic link token
+    const rawToken = generateSecureToken();
+    const hashedToken = hashToken(rawToken);
 
-    // Store token in database
+    console.log(`✉️ Generating magic link for ${normalizedEmail}`);
+    console.log(`Raw token length: ${rawToken.length}`);
+    console.log(`Raw token (first 20 chars): ${rawToken.substring(0, 20)}`);
+    console.log(
+      `Hashed token (first 20 chars): ${hashedToken.substring(0, 20)}`
+    );
+
+    // Store HASHED token in database (raw token goes to user email)
     await prisma.emailVerificationToken.create({
       data: {
         email: normalizedEmail,
-        token,
+        token: hashedToken,
         expiresAt: getMagicLinkExpiry(),
         userId: user.id,
       },
     });
 
-    // Send email
-    const emailSent = await sendMagicLinkEmail(normalizedEmail, token);
+    console.log(`✅ Token stored in DB for ${normalizedEmail}`);
 
-    if (!emailSent && process.env.NODE_ENV !== "development") {
+    // Send email with RAW token (user clicks this)
+    const emailSent = await sendMagicLinkEmail(normalizedEmail, rawToken);
+
+    if (!emailSent) {
+      // Clean up the token if email failed
+      await prisma.emailVerificationToken.deleteMany({
+        where: { token: hashedToken },
+      });
       throw new Error("Failed to send verification email");
     }
 
     res.json({
+      success: true,
       message: "Verification email sent",
       email: normalizedEmail,
     });
@@ -127,7 +130,7 @@ router.post("/email/start", async (req: Request, res: Response) => {
 });
 
 // ============================================
-// EMAIL MAGIC LINK - VERIFY
+// EMAIL MAGIC LINK - VERIFY (POST - from mobile app)
 // ============================================
 const emailVerifySchema = z.object({
   token: z.string().min(1, "Token is required"),
@@ -137,14 +140,55 @@ router.post("/email/verify", async (req: Request, res: Response) => {
   try {
     const { token } = emailVerifySchema.parse(req.body);
 
-    // Find token in database
-    const verificationToken = await prisma.emailVerificationToken.findUnique({
-      where: { token },
+    console.log("📧 Email verify POST request received");
+    console.log("Token received:", token);
+    console.log("Token length:", token.length);
+    console.log("Token type:", typeof token);
+
+    // Hash the incoming token to match stored hash
+    const hashedToken = hashToken(token);
+    console.log("Hashed token:", hashedToken);
+
+    // Find token in database using hashed value
+    // Use findFirst instead of findUnique for more reliable queries
+    const verificationToken = await prisma.emailVerificationToken.findFirst({
+      where: { token: hashedToken },
       include: { user: true },
     });
 
+    console.log("Token found in DB:", !!verificationToken);
+    if (!verificationToken) {
+      // Debug: check if ANY tokens exist for this purpose
+      const allTokens = await prisma.emailVerificationToken.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      });
+      console.log("Recent tokens in DB:", allTokens.length);
+      if (allTokens.length > 0) {
+        console.log(
+          "Sample token from DB (first 20 chars):",
+          allTokens[0].token.substring(0, 20)
+        );
+        console.log(
+          "Incoming hashed token (first 20 chars):",
+          hashedToken.substring(0, 20)
+        );
+      }
+      // Check if token exists in DB at all (not hashed)
+      const rawTokenCheck = await prisma.emailVerificationToken.findMany({
+        where: { email: {} },
+        take: 1,
+      });
+      if (rawTokenCheck.length > 0) {
+        console.log(
+          "Issue identified: Raw token hashing may not match. Compare above sample token with hashed token."
+        );
+      }
+    }
+
     // Validate token
     if (!verificationToken) {
+      console.log("❌ Token not found in database");
       return res.status(400).json({
         success: false,
         error: "Invalid verification link",
@@ -152,6 +196,7 @@ router.post("/email/verify", async (req: Request, res: Response) => {
     }
 
     if (verificationToken.used) {
+      console.log("❌ Token already used");
       return res.status(400).json({
         success: false,
         error: "This link has already been used",
@@ -159,16 +204,20 @@ router.post("/email/verify", async (req: Request, res: Response) => {
     }
 
     if (verificationToken.expiresAt < new Date()) {
+      console.log("❌ Token expired");
+      // Clean up expired token
+      await prisma.emailVerificationToken.delete({
+        where: { id: verificationToken.id },
+      });
       return res.status(400).json({
         success: false,
         error: "This link has expired. Please request a new one.",
       });
     }
 
-    // Mark token as used
-    await prisma.emailVerificationToken.update({
+    // Delete token immediately (single-use, prevents replay attacks)
+    await prisma.emailVerificationToken.delete({
       where: { id: verificationToken.id },
-      data: { used: true },
     });
 
     // Update user
@@ -182,10 +231,11 @@ router.post("/email/verify", async (req: Request, res: Response) => {
 
     // Create session
     const sessionToken = generateSecureToken();
+    const hashedSessionToken = hashToken(sessionToken);
     const session = await prisma.authSession.create({
       data: {
         userId: user.id,
-        sessionToken,
+        sessionToken: hashedSessionToken,
         expiresAt: getSessionExpiry(),
       },
     });
@@ -196,12 +246,6 @@ router.post("/email/verify", async (req: Request, res: Response) => {
       email: user.email,
       sessionId: session.id,
     });
-
-    console.log(
-      `✅ User verified: ${user.email} (onboarding: ${
-        user.onboardingCompleted ? "complete" : user.onboardingStep
-      })`
-    );
 
     // Get redirect path based on onboarding status
     const redirectPath = getRedirectPath(user);
@@ -242,70 +286,255 @@ router.post("/email/verify", async (req: Request, res: Response) => {
 });
 
 // ============================================
-// WEB REDIRECT - For testing magic links
+// EMAIL MAGIC LINK - VERIFY (GET - direct link click)
 // ============================================
-router.get("/verify-redirect", async (req: Request, res: Response) => {
+router.get("/email/verify", async (req: Request, res: Response) => {
   const { token } = req.query;
 
   if (!token || typeof token !== "string") {
-    return res.status(400).send(`
-      <html>
-        <body style="font-family: system-ui; padding: 40px; text-align: center;">
-          <h1>❌ Invalid Link</h1>
-          <p>This verification link is invalid or has expired.</p>
-        </body>
-      </html>
-    `);
+    return res
+      .status(400)
+      .send(
+        renderErrorPage("Invalid Link", "This verification link is invalid.")
+      );
   }
 
-  // For development build (custom scheme with proper route)
-  const devBuildLink = `exoptus://(auth)/verifying?token=${token}`;
+  try {
+    // Hash the incoming token to match stored hash
+    const hashedToken = hashToken(token);
 
-  // For Expo Go development (needs /--/ prefix and relative path)
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
-  const expoGoLink = `${expoDevUrl}/--/(auth)/verifying?token=${token}`;
+    // Find token in database using findFirst (more reliable than findUnique for unique constraints)
+    const verificationToken = await prisma.emailVerificationToken.findFirst({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
 
-  // For production (standalone app with proper route)
-  const appUrl = process.env.APP_URL || "exoptus://";
-  const prodLink = `${appUrl}(auth)/verifying?token=${token}`;
+    if (!verificationToken) {
+      return res
+        .status(400)
+        .send(
+          renderErrorPage(
+            "Invalid Link",
+            "This verification link is invalid or has already been used."
+          )
+        );
+    }
 
-  // Use Expo Go link for development, prod link for production
-  const deepLink =
-    process.env.NODE_ENV === "production" ? prodLink : expoGoLink;
+    if (verificationToken.used) {
+      return res
+        .status(400)
+        .send(
+          renderErrorPage(
+            "Link Already Used",
+            "This link has already been used. Please request a new one."
+          )
+        );
+    }
 
-  res.send(`
+    if (verificationToken.expiresAt < new Date()) {
+      await prisma.emailVerificationToken.delete({
+        where: { id: verificationToken.id },
+      });
+      return res
+        .status(400)
+        .send(
+          renderErrorPage(
+            "Link Expired",
+            "This link has expired. Please request a new one."
+          )
+        );
+    }
+
+    // Delete token (single-use)
+    await prisma.emailVerificationToken.delete({
+      where: { id: verificationToken.id },
+    });
+
+    // Update user
+    const user = await prisma.user.update({
+      where: { email: verificationToken.email },
+      data: {
+        emailVerified: true,
+        lastLoginAt: new Date(),
+      },
+    });
+
+    // Create session
+    const sessionToken = generateSecureToken();
+    const hashedSessionToken = hashToken(sessionToken);
+    const session = await prisma.authSession.create({
+      data: {
+        userId: user.id,
+        sessionToken: hashedSessionToken,
+        expiresAt: getSessionExpiry(),
+      },
+    });
+
+    // Generate JWT for authenticated session
+    const jwtToken = generateToken({
+      userId: user.id,
+      email: user.email,
+      sessionId: session.id,
+    });
+
+    // Get redirect path based on onboarding status
+    const redirectPath = getRedirectPath(user);
+
+    // Redirect to mobile app with JWT (already verified via GET)
+    // Use 'jwt' param to indicate this is an already-verified session token
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
+    const appScheme = process.env.APP_SCHEME || "exoptus";
+
+    // Build deep links with JWT and user data (already verified, no need for POST verification)
+    const userData = encodeURIComponent(
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        emailVerified: user.emailVerified,
+        onboardingCompleted: user.onboardingCompleted,
+        onboardingStep: user.onboardingStep,
+        onboardingStatus: user.onboardingStatus,
+        authProviders: user.authProviders.split(","),
+      })
+    );
+
+    const expoLink = `${expoDevUrl}/--/(auth)/verifying?jwt=${encodeURIComponent(
+      jwtToken
+    )}&redirectTo=${encodeURIComponent(redirectPath)}&user=${userData}`;
+    const prodLink = `${appScheme}://(auth)/verifying?jwt=${encodeURIComponent(
+      jwtToken
+    )}&redirectTo=${encodeURIComponent(redirectPath)}&user=${userData}`;
+    const devBuildLink = `exoptus://(auth)/verifying?jwt=${encodeURIComponent(
+      jwtToken
+    )}&redirectTo=${encodeURIComponent(redirectPath)}&user=${userData}`;
+
+    // Auto-redirect to mobile app
+    res.send(
+      renderSuccessPage(
+        user.email,
+        user.name,
+        jwtToken, // Pass JWT (already verified)
+        expoLink,
+        prodLink,
+        devBuildLink
+      )
+    );
+  } catch (error: any) {
+    console.error("Email verify GET error:", error);
+    return res
+      .status(500)
+      .send(
+        renderErrorPage(
+          "Verification Failed",
+          "Something went wrong. Please try again."
+        )
+      );
+  }
+});
+
+// Helper function to render error pages
+function renderErrorPage(title: string, message: string): string {
+  return `
+    <!DOCTYPE html>
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title} - Exoptus</title>
         <style>
-          body { font-family: system-ui; padding: 40px 20px; text-align: center; background: #f5f5f5; margin: 0; }
-          .card { background: white; padding: 40px 24px; border-radius: 16px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-          h1 { color: #0066FF; margin-bottom: 16px; }
-          .btn { display: inline-block; background: linear-gradient(135deg, #0066FF 0%, #3B82F6 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; margin: 16px 0; }
-          .btn:active { opacity: 0.9; }
-          .links { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; }
-          .link { display: block; color: #666; font-size: 14px; margin: 8px 0; word-break: break-all; }
-          code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #0D0D1A 0%, #1A1A2E 100%); }
+          .card { background: #1A1A2E; border-radius: 24px; padding: 48px 32px; text-align: center; max-width: 400px; margin: 20px; border: 1px solid rgba(139, 92, 246, 0.3); }
+          .icon { width: 64px; height: 64px; background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px; }
+          h1 { color: #ffffff; margin: 0 0 12px; font-size: 24px; }
+          p { color: rgba(255,255,255,0.7); margin: 0; font-size: 16px; line-height: 1.6; }
         </style>
       </head>
       <body>
         <div class="card">
-          <h1>✅ Verify Your Account</h1>
-          <p>Tap the button below to open the Exoptus app and complete verification.</p>
-          
-          <a href="${deepLink}" class="btn">Open Exoptus App</a>
-          
-          <div class="links">
-            <p style="color: #999; font-size: 12px; margin-bottom: 12px;">If the button doesn't work, try these links:</p>
-            <a href="${devBuildLink}" class="link">📱 Dev Build: <code>exoptus://...</code></a>
-            <a href="${expoGoLink}" class="link">🔵 Expo Go: <code>exp://...</code></a>
-            <a href="${prodLink}" class="link">🚀 Production: <code>exoptus://...</code></a>
-          </div>
+          <div class="icon">❌</div>
+          <h1>${title}</h1>
+          <p>${message}</p>
         </div>
       </body>
     </html>
-  `);
-});
+  `;
+}
+
+// Helper function to render success page with deep links
+function renderSuccessPage(
+  email: string,
+  name: string | null,
+  token: string,
+  expoLink: string,
+  prodLink: string,
+  devBuildLink: string
+): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verified - Exoptus</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #0D0D1A 0%, #1A1A2E 100%); }
+          .card { background: #1A1A2E; border-radius: 24px; padding: 48px 32px; text-align: center; max-width: 400px; margin: 20px; border: 1px solid rgba(139, 92, 246, 0.3); }
+          .icon { width: 80px; height: 80px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 40px; }
+          h1 { color: #ffffff; margin: 0 0 12px; font-size: 24px; }
+          p { color: rgba(255,255,255,0.7); margin: 0 0 8px; font-size: 16px; }
+          .email { background: rgba(168, 85, 247, 0.2); padding: 8px 16px; border-radius: 8px; font-size: 14px; color: #A855F7; margin: 16px 0 24px; display: inline-block; }
+          .btn { display: block; background: linear-gradient(135deg, #A855F7 0%, #7C3AED 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; margin: 12px 0; transition: transform 0.2s; }
+          .btn:hover { transform: translateY(-2px); }
+          .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+          .divider { margin: 20px 0; color: rgba(255,255,255,0.4); font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="icon">✓</div>
+          <h1>Welcome${name ? `, ${name}` : ""}!</h1>
+          <p>Your email has been verified</p>
+          <div class="email">${email}</div>
+          
+          <a href="${expoLink}" class="btn">📱 Open in Expo Go</a>
+          
+          <div class="divider">— other options —</div>
+          
+          <a href="${devBuildLink}" class="btn btn-secondary">Open Dev Build</a>
+          <a href="${prodLink}" class="btn btn-secondary">Open Production App</a>
+        </div>
+        
+        <script>
+          // Auto-redirect to Expo Go (for development)
+          // Change to prodLink for production builds
+          function redirectToApp() {
+            // Try Expo Go first (development)
+            window.location.href = "${expoLink}";
+            
+            // Fallback: try iframe method after 2s
+            setTimeout(() => {
+              const iframe = document.createElement('iframe');
+              iframe.style.display = 'none';
+              iframe.src = "${expoLink}";
+              document.body.appendChild(iframe);
+            }, 2000);
+          }
+          
+          // Start redirect immediately
+          redirectToApp();
+          
+          // Manual button clicks for other options
+          document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              window.location.href = btn.getAttribute('href');
+            });
+          });
+        </script>
+      </body>
+    </html>
+  `;
+}
 
 // ============================================
 // GOOGLE OAUTH - Server-side flow (for Expo Go)
@@ -321,7 +550,12 @@ router.get("/google/start", (req: Request, res: Response) => {
   // Get the app redirect URL from query params (for deep linking back)
   const appRedirect = (req.query.redirect as string) || "";
 
-  const state = Buffer.from(JSON.stringify({ appRedirect })).toString("base64");
+  // Check if this is from expo-web-browser (expects direct redirect back)
+  const isWebBrowser = req.query.webBrowser === "true";
+
+  const state = Buffer.from(
+    JSON.stringify({ appRedirect, isWebBrowser })
+  ).toString("base64");
 
   const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   googleAuthUrl.searchParams.set("client_id", clientId!);
@@ -332,7 +566,6 @@ router.get("/google/start", (req: Request, res: Response) => {
   googleAuthUrl.searchParams.set("state", state);
   googleAuthUrl.searchParams.set("prompt", "consent");
 
-  console.log(`🔵 Starting Google OAuth, redirect_uri: ${redirectUri}`);
   res.redirect(googleAuthUrl.toString());
 });
 
@@ -350,13 +583,15 @@ router.get("/google/callback", async (req: Request, res: Response) => {
       return res.redirect(`${getAppDeepLink()}?error=no_code`);
     }
 
-    // Parse state to get app redirect URL
+    // Parse state to get app redirect URL and browser type
     let appRedirect = "";
+    let isWebBrowser = false;
     try {
       const stateData = JSON.parse(
         Buffer.from(state as string, "base64").toString()
       );
       appRedirect = stateData.appRedirect || "";
+      isWebBrowser = stateData.isWebBrowser === true;
     } catch (e) {
       // Ignore state parse errors
     }
@@ -406,22 +641,12 @@ router.get("/google/callback", async (req: Request, res: Response) => {
         where: { email: normalizedEmail },
       });
     } catch (prismaErr) {
-      console.error(
-        "Prisma findUnique error (google):",
-        normalizedEmail,
-        prismaErr
-      );
       // Fallback: try findFirst in case of schema/client mismatch
       try {
         user = await prisma.user.findFirst({
           where: { email: normalizedEmail },
         });
       } catch (fallbackErr) {
-        console.error(
-          "Prisma findFirst fallback failed (google):",
-          normalizedEmail,
-          fallbackErr
-        );
         throw prismaErr;
       }
     }
@@ -442,7 +667,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New Google user created: ${normalizedEmail}`);
     } else if (!hasAuthProvider(user, "google")) {
       // ACCOUNT LINKING
       user = await addAuthProvider(user.id, "google", {
@@ -458,8 +682,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
         where: { id: user.id },
         data: updates,
       });
-
-      console.log(`🔗 Google account linked: ${normalizedEmail}`);
     } else {
       user = await prisma.user.update({
         where: { id: user.id },
@@ -469,7 +691,6 @@ router.get("/google/callback", async (req: Request, res: Response) => {
           lastLoginAt: new Date(),
         },
       });
-      console.log(`✅ Google user signed in: ${normalizedEmail}`);
     }
 
     // Create session
@@ -489,15 +710,20 @@ router.get("/google/callback", async (req: Request, res: Response) => {
       sessionId: session.id,
     });
 
-    console.log(`✅ Google OAuth complete: ${user.email}`);
-
-    // Show success page with deep link to app (works from localhost on phone browser)
-    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://192.168.1.35:8081";
+    // Build deep link URLs
+    const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
     const appScheme = process.env.APP_SCHEME || "exoptus";
 
     const expoLink = `${expoDevUrl}/--/google-callback?token=${jwtToken}&success=true`;
     const prodLink = `${appScheme}://google-callback?token=${jwtToken}&success=true`;
 
+    // For expo-web-browser: Direct redirect back to app (no HTML page)
+    // This allows openAuthSessionAsync to capture the callback automatically
+    if (isWebBrowser) {
+      return res.redirect(expoLink);
+    }
+
+    // For browser-based flow: Show success page with deep link button
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -626,7 +852,7 @@ router.get("/google/callback", async (req: Request, res: Response) => {
 
 // Helper to get the app deep link URL
 function getAppDeepLink(customPath: string = ""): string {
-  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://10.175.216.47:8081";
+  const expoDevUrl = process.env.EXPO_DEV_URL || "exp://localhost:8081";
   const appScheme = process.env.APP_SCHEME || "exoptus";
 
   // For development (Expo Go)
@@ -682,7 +908,6 @@ router.post("/google", async (req: Request, res: Response) => {
           onboardingStatus: "not_started",
         },
       });
-      console.log(`✨ New Google user created: ${normalizedEmail}`);
     } else if (!hasAuthProvider(user, "google")) {
       // ACCOUNT LINKING - User exists but signed up with email
       // Auto-link since Google verified the email
@@ -700,8 +925,6 @@ router.post("/google", async (req: Request, res: Response) => {
         where: { id: user.id },
         data: updates,
       });
-
-      console.log(`🔗 Google account linked: ${normalizedEmail}`);
     } else {
       // User already has Google linked - just update last login
       user = await prisma.user.update({
@@ -712,7 +935,6 @@ router.post("/google", async (req: Request, res: Response) => {
           lastLoginAt: new Date(),
         },
       });
-      console.log(`✅ Google user signed in: ${normalizedEmail}`);
     }
 
     // Create session
@@ -731,12 +953,6 @@ router.post("/google", async (req: Request, res: Response) => {
       email: user.email,
       sessionId: session.id,
     });
-
-    console.log(
-      `✅ Google auth complete: ${user.email} (onboarding: ${
-        user.onboardingCompleted ? "complete" : user.onboardingStep
-      })`
-    );
 
     // Get redirect path based on onboarding status
     const redirectPath = getRedirectPath(user);
@@ -874,15 +1090,6 @@ router.post("/logout", async (req: Request, res: Response) => {
   } catch (error) {
     res.json({ success: true });
   }
-});
-
-// ============================================
-// WEB REDIRECT (for testing magic links in browser)
-// ============================================
-router.get("/verify-redirect", (req: Request, res: Response) => {
-  const { token } = req.query;
-  const appUrl = process.env.APP_URL || "exoptus://";
-  res.redirect(`${appUrl}verify?token=${token}`);
 });
 
 export default router;

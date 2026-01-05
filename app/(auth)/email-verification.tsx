@@ -91,7 +91,7 @@ export default function EmailVerificationScreen() {
     transform: [
       { scale: envelopeScale.value },
       { translateY: envelopeY.value },
-    ],
+    ] as any,
   }));
 
   const handleResendEmail = async () => {
@@ -168,7 +168,7 @@ export default function EmailVerificationScreen() {
           />
         </Animated.View>
 
-        {/* Resend Button */}
+        {/* Buttons */}
         <View style={styles.buttonContainer}>
           <Pressable
             onPress={handleResendEmail}
@@ -247,6 +247,20 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "System",
     alignSelf: "flex-start",
     marginBottom: 20,
+  },
+  continueButton: {
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 25,
+    backgroundColor: "#8B5CF6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "System",
   },
   emailHighlight: {
     color: "#111827",

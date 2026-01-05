@@ -95,7 +95,7 @@ const VerifiedBadge = ({
     transform: [
       { scale: badgeScale.value },
       { rotate: `${badgeRotation.value}deg` },
-    ],
+    ] as any,
   }));
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
@@ -194,7 +194,7 @@ const LoadingSpinner = ({ size = 100 }: { size?: number }) => {
     transform: [
       { rotate: `${rotation.value}deg` },
       { scale: pulseScale.value },
-    ],
+    ] as any,
   }));
 
   return (
@@ -237,7 +237,12 @@ let cachedVerificationResult: {
 } | null = null;
 
 export default function VerifyingScreen() {
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{
+    token?: string; // Raw token (needs POST verification)
+    jwt?: string; // JWT token (already verified via GET)
+    redirectTo?: string; // Redirect path from server
+    user?: string; // User data JSON from server
+  }>();
   const [state, setState] = useState<VerifyState>(() => {
     // Restore state from cache if available
     if (cachedVerificationResult?.success) return "verified";
@@ -262,8 +267,42 @@ export default function VerifyingScreen() {
   // Verification function - can be called for retry
   const verifyToken = async () => {
     try {
+      // CASE A: JWT already provided (verified via GET endpoint)
+      // No need to call POST - server already verified & created session
+      if (params.jwt && params.user) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(params.user));
+          const route = params.redirectTo
+            ? decodeURIComponent(params.redirectTo)
+            : userData.onboardingStatus === "completed"
+            ? "/(main)/home"
+            : "/(onboarding)/chat";
+
+          // Store the JWT token for future API calls
+          await authService.storeToken(params.jwt);
+
+          cachedVerificationResult = { success: true, user: userData, route };
+          isVerificationInProgress = false;
+
+          setUser(userData);
+          setState("verified");
+          setUserRoute(route);
+
+          // Animate button entrance
+          buttonOpacity.value = withDelay(
+            1200,
+            withTiming(1, { duration: 400 })
+          );
+          buttonScale.value = withDelay(1200, withSpring(1, { damping: 10 }));
+          return;
+        } catch (parseError) {
+          console.error("Failed to parse user data from JWT flow:", parseError);
+          // Fall through to token verification as fallback
+        }
+      }
+
+      // CASE B: Raw token provided (needs POST verification)
       if (!params.token) {
-        console.log("❌ No token in params:", params);
         cachedVerificationResult = {
           success: false,
           error: "Invalid verification link. Please request a new magic link.",
@@ -274,11 +313,7 @@ export default function VerifyingScreen() {
         return;
       }
 
-      console.log("🔐 Verifying token:", params.token.substring(0, 20) + "...");
-
       const result = await authService.verifyMagicLink(params.token);
-
-      console.log("🔐 Verification result:", result.success, result.error);
 
       // Cache the result
       if (result.success && result.user) {
@@ -298,10 +333,7 @@ export default function VerifyingScreen() {
         buttonOpacity.value = withDelay(1200, withTiming(1, { duration: 400 }));
         buttonScale.value = withDelay(1200, withSpring(1, { damping: 10 }));
 
-        // Auto-redirect after 10 seconds
-        setTimeout(() => {
-          router.replace(route);
-        }, 10000);
+        // User must click Continue button to proceed (no auto-redirect)
       } else {
         cachedVerificationResult = {
           success: false,
@@ -310,14 +342,16 @@ export default function VerifyingScreen() {
         };
         isVerificationInProgress = false;
 
+        // Show more helpful error info in the UI
         setState("error");
-        setErrorMessage(cachedVerificationResult.error!);
+        setErrorMessage(
+          cachedVerificationResult.error || "Verification failed"
+        );
       }
     } catch (error: any) {
-      console.log("❌ Verification error:", error);
       cachedVerificationResult = {
         success: false,
-        error: "Something went wrong. Please try again.",
+        error: error?.message || "Something went wrong. Please try again.",
       };
       isVerificationInProgress = false;
 
@@ -336,10 +370,6 @@ export default function VerifyingScreen() {
 
     // CASE 1: Already have cached result (from previous mount)
     if (cachedVerificationResult) {
-      console.log(
-        "📦 Using cached verification result:",
-        cachedVerificationResult.success
-      );
       if (cachedVerificationResult.success && cachedVerificationResult.user) {
         setUser(cachedVerificationResult.user);
         setState("verified");
@@ -357,7 +387,6 @@ export default function VerifyingScreen() {
 
     // CASE 2: Another mount is already verifying - wait for it
     if (isVerificationInProgress) {
-      console.log("⏳ Verification already in progress, waiting...");
       // Poll for cached result
       const pollInterval = setInterval(() => {
         if (cachedVerificationResult) {
@@ -393,7 +422,6 @@ export default function VerifyingScreen() {
 
     // CASE 3: First mount - start verification
     isVerificationInProgress = true;
-    console.log("🚀 Starting verification...");
     verifyToken();
   }, [params.token]);
 
