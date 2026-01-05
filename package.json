@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
-    "@types/react": "~19.1.10",
+    "@types/react": "~19.2.0",
     "concurrently": "^8.2.2"
   },
   "engines": {
