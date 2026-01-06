@@ -100,6 +100,7 @@ model EmailVerificationToken {
 
   @@index([token])
   @@index([email])
+  @@index([email, createdAt]) // For throttling query performance
   @@map("email_verification_tokens")
 }
 

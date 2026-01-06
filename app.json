@@ -4,10 +4,7 @@
     "slug": "exoptus",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "exoptus",
@@ -22,22 +19,25 @@
       "bundleIdentifier": "com.exoptus.app"
     },
     "android": {
-      "package": "com.exoptus.exoptus",
+      "package": "com.exoptus.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1B3A8C"
-      }
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "extra": {
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "b21e56ac-cf11-4373-8200-71803592740b"
+      },
+      "router": {}
     },
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      "@react-native-google-signin/google-signin",
-      "expo-web-browser"
-    ]
+    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
   }
 }

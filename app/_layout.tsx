@@ -10,107 +10,57 @@
  * - Deep link handling for magic links
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Stack, router, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { View, Text, ActivityIndicator } from "react-native";
 import * as Linking from "expo-linking";
 import * as Font from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+
+// Import hooks
+import { useDeepLinkAuth } from "../hooks/useDeepLinkAuth";
 
 // Import global styles
 import "../styles/global";
 
+// Keep the splash screen visible while we load resources
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const rootNavigationState = useRootNavigationState();
+  const [appIsReady, setAppIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Handle deep links
+  // Setup OAuth deep link handler (listens for JWT tokens)
+  useDeepLinkAuth();
+
+  // Load resources
   useEffect(() => {
-    // Only handle deep links when navigation is ready
-    if (!rootNavigationState?.key) return;
-
-    // Handle initial URL (app opened via deep link)
-    const handleInitialURL = async () => {
-      const url = await Linking.getInitialURL();
-      if (url) {
-        handleDeepLink(url);
-      }
-    };
-
-    // Handle URL when app is already open
-    const subscription = Linking.addEventListener("url", (event) => {
-      handleDeepLink(event.url);
-    });
-
-    handleInitialURL();
-
-    return () => {
-      subscription.remove();
-    };
-  }, [rootNavigationState?.key]);
-
-  const handleDeepLink = async (url: string) => {
-    // Parse the URL to extract params
-    const parsed = Linking.parse(url);
-
-    // Extract token from URL
-    let token: string | null = null;
-    if (
-      parsed.queryParams?.token &&
-      typeof parsed.queryParams.token === "string"
-    ) {
-      token = parsed.queryParams.token;
-    }
-    if (!token && url.includes("token=")) {
-      const match = url.match(/token=([^&]+)/);
-      if (match) token = match[1];
-    }
-
-    // Check for Google OAuth callback
-    const isGoogleCallback =
-      parsed.path?.includes("google-callback") ||
-      url.includes("google-callback");
-    if (isGoogleCallback && token) {
-      // Import and use auth service to handle the callback
-      const authService = require("../services/auth").default;
-      const { useUserStore } = require("../store/userStore");
-
+    async function prepare() {
       try {
-        const result = await authService.handleGoogleCallback(token);
-        if (result.success && result.user) {
-          useUserStore.getState().setUser(result.user);
-          const route = authService.getRouteForUser(result.user);
-          router.replace(route);
-        }
-      } catch (error) {
-        // Error handling Google callback
+        // Pre-load fonts, images, make API calls, etc.
+        // Add a small delay to ensure everything is loaded
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        setAppIsReady(true);
+      } catch (e) {
+        console.error("Error loading app:", e);
+        setError(e instanceof Error ? e.message : "Unknown error");
+        setAppIsReady(true); // Still show app even if there's an error
       }
-      return;
     }
 
-    // Check if this is a verify link (magic link)
-    const isVerifyPath =
-      parsed.path?.includes("verify") ||
-      parsed.path?.includes("email") ||
-      url.includes("/verify") ||
-      url.includes("auth/email");
-    if (isVerifyPath && token) {
-      router.replace({
-        pathname: "/(auth)/verifying",
-        params: { token },
-      });
-      return;
-    }
+    prepare();
+  }, []);
 
-    // Ignore other OAuth-related URLs
-    if (
-      url.includes("id_token=") ||
-      url.includes("access_token=") ||
-      url.includes("code=")
-    ) {
-      return;
+  // Hide splash screen when ready
+  useEffect(() => {
+    if (appIsReady && rootNavigationState?.key) {
+      SplashScreen.hideAsync();
     }
-  };
+  }, [appIsReady, rootNavigationState?.key]);
 
   // Load custom fonts if needed
   useEffect(() => {
@@ -119,6 +69,27 @@ export default function RootLayout() {
     }
     loadFonts();
   }, []);
+
+  // Conditional returns AFTER all hooks
+  if (!appIsReady || !rootNavigationState?.key) {
+    return null; // Splash screen is showing
+  }
+
+  if (error) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
+        }}
+      >
+        <Text style={{ color: "red", marginBottom: 10 }}>App Error:</Text>
+        <Text>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
