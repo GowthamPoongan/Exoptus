@@ -21,26 +21,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
-import authService from "../../services/auth";
-import { useUserStore } from "../../store/userStore";
-
-// Lazy import Google Sign-In to avoid crash in Expo Go
-let GoogleSignin: any = null;
-let statusCodes: any = null;
-let isSuccessResponse: any = null;
-let isErrorWithCode: any = null;
-let nativeGoogleAvailable = false;
-
-try {
-  const googleSignInModule = require("@react-native-google-signin/google-signin");
-  GoogleSignin = googleSignInModule.GoogleSignin;
-  statusCodes = googleSignInModule.statusCodes;
-  isSuccessResponse = googleSignInModule.isSuccessResponse;
-  isErrorWithCode = googleSignInModule.isErrorWithCode;
-  nativeGoogleAvailable = true;
-} catch (e) {
-  // Native Google Sign-In not available - will use web OAuth fallback
-}
+import { useAuthSession } from "../../services/authSession";
 
 const { width, height } = Dimensions.get("window");
 
@@ -67,12 +48,8 @@ const GoogleIcon = ({ size = 20 }: { size?: number }) => (
 );
 
 export default function WelcomeScreen() {
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isNativeConfigured, setIsNativeConfigured] = useState(false);
-  const { setUser } = useUserStore();
-
-  // Google OAuth is always enabled - native in dev builds, web in Expo Go
-  const GOOGLE_AUTH_ENABLED = true;
+  const [isLoading, setIsLoading] = useState(false);
+  const { signInWithGoogle } = useAuthSession();
 
   // Animation values
   const logoOpacity = useSharedValue(0);
@@ -82,21 +59,7 @@ export default function WelcomeScreen() {
   const buttonsTranslateY = useSharedValue(30);
 
   useEffect(() => {
-    // Configure native Google Sign-In if available (dev build only)
-    if (nativeGoogleAvailable && GoogleSignin) {
-      try {
-        GoogleSignin.configure({
-          webClientId:
-            "463755159994-qh29mpi9dsbp90gf5id3q3id1m3eluie.apps.googleusercontent.com",
-          offlineAccess: true,
-          scopes: ["profile", "email"],
-        });
-        setIsNativeConfigured(true);
-      } catch (e) {
-        // Failed to configure native - will fall back to web OAuth
-      }
-    }
-
+    // Setup animations
     logoOpacity.value = withDelay(100, withTiming(1, { duration: 200 }));
 
     taglineOpacity.value = withDelay(200, withTiming(1, { duration: 250 }));
@@ -112,94 +75,28 @@ export default function WelcomeScreen() {
     );
   }, []);
 
-  // Handle successful Google sign-in (from either native or web OAuth)
-  const handleGoogleSuccess = async (user: any) => {
-    setUser(user);
-    const route = authService.getRouteForUser(user);
-    router.replace(route);
-  };
+  // Handle Google OAuth with AuthSession
+  const handleGoogleSignIn = async () => {
+    if (isLoading) return;
 
-  // Native Google Sign-In (dev builds with native module)
-  const handleNativeGoogleSignIn = async () => {
+    setIsLoading(true);
+
     try {
-      await GoogleSignin.hasPlayServices({
-        showPlayServicesUpdateDialog: true,
-      });
+      console.log("🔐 Starting Google OAuth flow with AuthSession");
+      const result = await signInWithGoogle();
 
-      const response = await GoogleSignin.signIn();
-
-      if (isSuccessResponse(response)) {
-        const { idToken } = response.data;
-
-        if (idToken) {
-          const result = await authService.googleSignIn(idToken);
-          if (result.success && result.user) {
-            await handleGoogleSuccess(result.user);
-          } else {
-            Alert.alert("Sign In Failed", result.error || "Please try again");
-          }
-        } else {
-          Alert.alert("Error", "Failed to get authentication token.");
-        }
+      if (result.success) {
+        // Deep link handler will route the user
+        // This is handled automatically by useDeepLinkAuth hook
+        console.log("✅ AuthSession successful, JWT received and stored");
+      } else {
+        Alert.alert("Sign In Failed", result.error || "Please try again");
       }
     } catch (error: any) {
-      if (isErrorWithCode(error)) {
-        switch (error.code) {
-          case statusCodes.SIGN_IN_CANCELLED:
-            // User cancelled - silent
-            break;
-          case statusCodes.IN_PROGRESS:
-            // Already in progress - silent
-            break;
-          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            Alert.alert(
-              "Google Play Services",
-              "Please update or install Google Play Services.",
-              [{ text: "OK" }]
-            );
-            break;
-          default:
-            Alert.alert(
-              "Sign In Error",
-              "Something went wrong. Please try again."
-            );
-        }
-      } else {
-        Alert.alert("Error", "Failed to sign in with Google.");
-      }
-    }
-  };
-
-  // Web-based Google OAuth (Expo Go fallback)
-  const handleWebGoogleOAuth = async () => {
-    const result = await authService.startWebGoogleOAuth();
-
-    if (result.success) {
-      // Token was handled, get the user and route
-      const cachedUser = await authService.getCachedUser();
-      if (cachedUser) {
-        await handleGoogleSuccess(cachedUser);
-      }
-    } else if (result.error && result.error !== "Sign-in cancelled") {
-      Alert.alert("Sign In Failed", result.error);
-    }
-  };
-
-  const handleGooglePress = async () => {
-    if (isGoogleLoading) return;
-
-    setIsGoogleLoading(true);
-
-    try {
-      // Use native Google Sign-In if available (dev build)
-      if (nativeGoogleAvailable && isNativeConfigured) {
-        await handleNativeGoogleSignIn();
-      } else {
-        // Fallback to web OAuth (Expo Go / web)
-        await handleWebGoogleOAuth();
-      }
+      console.error("Google sign-in error:", error);
+      Alert.alert("Error", error.message || "Failed to sign in with Google");
     } finally {
-      setIsGoogleLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -262,14 +159,11 @@ export default function WelcomeScreen() {
         {/* Buttons Section */}
         <Animated.View style={[styles.buttonsContainer, buttonsAnimatedStyle]}>
           <Pressable
-            style={[
-              styles.googleButton,
-              isGoogleLoading && styles.buttonDisabled,
-            ]}
-            onPress={handleGooglePress}
-            disabled={isGoogleLoading}
+            style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
           >
-            {isGoogleLoading ? (
+            {isLoading ? (
               <ActivityIndicator size="small" color="#1f2937" />
             ) : (
               <>

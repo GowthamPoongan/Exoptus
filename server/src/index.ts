@@ -24,6 +24,7 @@ import adminRoutes from "./routes/admin";
 import adminAuthRoutes from "./routes/admin-auth";
 import communityRoutes from "./routes/community";
 import dashboardRoutes from "./routes/dashboard";
+import { verifySmtpConnection } from "./lib/email";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -65,10 +66,13 @@ app.use(
 );
 
 // Start server - listen on all interfaces (0.0.0.0) for mobile access
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`🚀 EXOPTUS Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📱 Network access: http://0.0.0.0:${PORT}`);
+
+  // Verify SMTP connection on startup
+  await verifySmtpConnection();
 });
 
 export default app;

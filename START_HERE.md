@@ -1,55 +1,103 @@
-# 🚀 EXOPTUS - Complete Startup Guide
+# 🚀 EXOPTUS - Start Here
 
-## ✅ What's Been Set Up
+## Quick Links
 
-### 1. **Admin Dashboard Web** (React + Vite)
-
-- Location: `apps/web-dashboard/`
-- Port: `http://localhost:5173`
-- Type: Pure React website
-- Tech: Vite, React, TypeScript
-
-### 2. **Mobile App** (React Native)
-
-- Location: `apps/mobile/`
-- Port: `http://localhost:8081`
-- Type: Expo app
-
-### 3. **Server** (Express + Prisma)
-
-- Location: `server/`
-- Port: `http://10.175.216.47:3000`
-- Type: Node.js API
+- **📖 Full Documentation** → Read [DOCUMENTATION.md](DOCUMENTATION.md)
+- **🚂 Deployment Guide** → Read [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)
+- **📝 Project README** → Read [README.md](README.md)
 
 ---
 
-## 🎯 Quick Start (3 Steps)
+## ⚡ 30-Second Quick Start
 
-### Step 1: Navigate to Project Root
-
-```powershell
-cd c:\Projects\Exoptus
-```
-
-### Step 2: Install All Dependencies
-
-```powershell
-npm install
-```
-
-This installs dependencies for:
-
-- Root monorepo
-- Admin dashboard
-- Mobile app
-- Server
-- All packages
-
-### Step 3: Start Everything
-
-```powershell
+```bash
+# Terminal 1: Backend Server
+cd server
 npm run dev
+# Wait for: 🚀 EXOPTUS Server running on port 3000
+
+# Terminal 2: Expo App (separate terminal)
+npx expo start --clear
+# Scan QR code with Expo Go app
 ```
+
+---
+
+## 📋 Your IP Address
+
+**Current:** `192.168.1.22`
+
+If your IP changes, update:
+
+1. `server/.env` - `SERVER_URL`, `APP_BASE_URL`, `API_URL`
+2. `root/.env` - `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SERVER_URL`
+3. Google Cloud Console - Redirect URI
+
+Check IP: `ipconfig`
+
+---
+
+## 🔧 Common Tasks
+
+### Email Verification Not Working?
+
+→ Check [DOCUMENTATION.md - Email & SMTP](DOCUMENTATION.md#email--smtp)
+
+### Google OAuth Errors?
+
+→ Check [DOCUMENTATION.md - Google OAuth](DOCUMENTATION.md#google-oauth)
+
+### Database Connection Issues?
+
+→ Check [DOCUMENTATION.md - Troubleshooting](DOCUMENTATION.md#troubleshooting)
+
+### Deploy to Production?
+
+→ Read [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)
+
+---
+
+## 📂 Project Structure
+
+```
+/app              → React Native Expo app
+/server           → Express + Prisma backend
+/apps/web-dashboard → Admin dashboard (React)
+/components       → Reusable UI components
+/services         → API services
+/store            → Zustand state management
+```
+
+---
+
+## ✅ Current Status
+
+| Component      | Status     | Port   |
+| -------------- | ---------- | ------ |
+| Backend Server | Running    | 3000   |
+| Expo App       | Ready      | 8081   |
+| Database       | Supabase   | AWS    |
+| Email          | Gmail SMTP | 587    |
+| Google OAuth   | Configured | Custom |
+
+---
+
+## 🆘 Need Help?
+
+1. Check **DOCUMENTATION.md** for full guides
+2. Check server logs: `npm run dev` output
+3. Check Expo logs: Terminal where you ran `expo start`
+
+**Most common issues:**
+
+- Wrong IP address → Update `.env` files
+- Email not sending → Check Gmail password
+- Google OAuth fails → Register URL in Google Cloud Console
+- Server won't start → Kill: `Get-Process node | Stop-Process -Force`
+
+npm run dev
+
+````
 
 **OR use the launcher script:**
 
@@ -59,7 +107,7 @@ npm run dev
 
 # Command Prompt
 .\start-all.bat
-```
+````
 
 ---
 

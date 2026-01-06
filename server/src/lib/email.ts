@@ -22,6 +22,12 @@ let transporter: Transporter | null = null;
 
 function getTransporter(): Transporter {
   if (!transporter) {
+    console.log("🔧 Creating SMTP transporter with config:");
+    console.log(`  Host: ${SMTP_HOST}`);
+    console.log(`  Port: ${SMTP_PORT}`);
+    console.log(`  Secure: ${SMTP_PORT === 465}`);
+    console.log(`  User: ${SMTP_USER}`);
+
     transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
@@ -34,9 +40,33 @@ function getTransporter(): Transporter {
         // Allow self-signed certificates (for institutional/college servers)
         rejectUnauthorized: false,
       },
+      // Add connection timeout and retry settings
+      connectionTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
     });
   }
   return transporter;
+}
+
+/**
+ * Verify SMTP connection is working
+ */
+export async function verifySmtpConnection(): Promise<boolean> {
+  try {
+    console.log("🔍 Verifying SMTP connection...");
+    const transport = getTransporter();
+    await transport.verify();
+    console.log("✅ SMTP connection verified successfully");
+    return true;
+  } catch (error: any) {
+    console.error("❌ SMTP connection verification failed:", {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+    });
+    return false;
+  }
 }
 
 /**
@@ -237,7 +267,9 @@ This email was sent to ${email} because you requested a sign-in link for Exoptus
       throw new Error("Email service not configured");
     }
 
-    // Send email via SMTP
+    console.log(`📧 Sending magic link to ${email}...`);
+
+    // Send email via SMTP and await the result
     const info = await getTransporter().sendMail({
       from: EMAIL_FROM,
       to: email,
@@ -247,9 +279,18 @@ This email was sent to ${email} because you requested a sign-in link for Exoptus
     });
 
     console.log(`✅ Magic link email sent to ${email} (ID: ${info.messageId})`);
+
+    // Return true only after successful send
     return true;
   } catch (error: any) {
-    console.error("❌ Email sending failed:", error.message);
+    console.error(`❌ Email sending failed for ${email}`);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      stack: error.stack?.split("\n").slice(0, 3).join("\n"),
+    });
     return false;
   }
 }

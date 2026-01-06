@@ -4,10 +4,7 @@
     "slug": "exoptus",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "exoptus",
@@ -22,7 +19,7 @@
       "bundleIdentifier": "com.exoptus.app"
     },
     "android": {
-      "package": "com.exoptus.exoptus",
+      "package": "com.exoptus.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1B3A8C"
@@ -41,10 +38,6 @@
       },
       "router": {}
     },
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser"
-    ]
+    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
   }
 }
