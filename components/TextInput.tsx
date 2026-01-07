@@ -16,6 +16,7 @@ import {
   TextInput as RNTextInput,
   Text,
   StyleSheet,
+  StyleProp,
   ViewStyle,
   TextStyle,
   TextInputProps as RNTextInputProps,
@@ -33,7 +34,7 @@ interface TextInputProps extends RNTextInputProps {
   label?: string;
   error?: string;
   hint?: string;
-  containerStyle?: ViewStyle;
+  containerStyle?: StyleProp<ViewStyle>;
   inputStyle?: TextStyle;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;

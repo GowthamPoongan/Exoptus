@@ -16,6 +16,7 @@ import {
   Text,
   ActivityIndicator,
   StyleSheet,
+  StyleProp,
   ViewStyle,
   TextStyle,
 } from "react-native";
@@ -36,8 +37,8 @@ interface ButtonProps {
   loading?: boolean;
   icon?: React.ReactNode;
   iconPosition?: "left" | "right";
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   fullWidth?: boolean;
 }
 

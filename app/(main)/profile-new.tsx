@@ -5,7 +5,7 @@
  * - Edit Profile: Actually works
  * - Delete Account: REAL DELETE with confirmation
  * - Logout: Proper session clear
- * 
+ *
  * Trust through data control.
  */
 
@@ -29,12 +29,21 @@ import { router } from "expo-router";
 
 import { useDashboardStore } from "../../store/dashboardStore";
 import { useUserStore } from "../../store/userStore";
-import { PressableCard, PressableMenuItem } from "../../components/PressableCard";
+import {
+  PressableCard,
+  PressableMenuItem,
+} from "../../components/PressableCard";
 import { BottomTabBar } from "../../components/BottomTabBar";
 import { api } from "../../services/api";
 
 // Icons
-const UserIcon = ({ color = "#3B82F6", size = 24 }: { color?: string; size?: number }) => (
+const UserIcon = ({
+  color = "#3B82F6",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} />
     <Path
@@ -46,7 +55,13 @@ const UserIcon = ({ color = "#3B82F6", size = 24 }: { color?: string; size?: num
   </Svg>
 );
 
-const SettingsIcon = ({ color = "#8B5CF6", size = 24 }: { color?: string; size?: number }) => (
+const SettingsIcon = ({
+  color = "#8B5CF6",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={2} />
     <Path
@@ -58,7 +73,13 @@ const SettingsIcon = ({ color = "#8B5CF6", size = 24 }: { color?: string; size?:
   </Svg>
 );
 
-const ChevronRightIcon = ({ color = "#9CA3AF", size = 20 }: { color?: string; size?: number }) => (
+const ChevronRightIcon = ({
+  color = "#9CA3AF",
+  size = 20,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M9 18L15 12L9 6"
@@ -70,7 +91,13 @@ const ChevronRightIcon = ({ color = "#9CA3AF", size = 20 }: { color?: string; si
   </Svg>
 );
 
-const ShieldIcon = ({ color = "#10B981", size = 24 }: { color?: string; size?: number }) => (
+const ShieldIcon = ({
+  color = "#10B981",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z"
@@ -79,11 +106,23 @@ const ShieldIcon = ({ color = "#10B981", size = 24 }: { color?: string; size?: n
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Path d="M9 12L11 14L15 10" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M9 12L11 14L15 10"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
-const InfoIcon = ({ color = "#60A5FA", size = 24 }: { color?: string; size?: number }) => (
+const InfoIcon = ({
+  color = "#60A5FA",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
     <Path d="M12 16V12" stroke={color} strokeWidth={2} strokeLinecap="round" />
@@ -91,7 +130,13 @@ const InfoIcon = ({ color = "#60A5FA", size = 24 }: { color?: string; size?: num
   </Svg>
 );
 
-const LogoutIcon = ({ color = "#EF4444", size = 24 }: { color?: string; size?: number }) => (
+const LogoutIcon = ({
+  color = "#EF4444",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9"
@@ -100,14 +145,38 @@ const LogoutIcon = ({ color = "#EF4444", size = 24 }: { color?: string; size?: n
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Path d="M16 17L21 12L16 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M21 12H9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M16 17L21 12L16 7"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M21 12H9"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
-const TrashIcon = ({ color = "#EF4444", size = 24 }: { color?: string; size?: number }) => (
+const TrashIcon = ({
+  color = "#EF4444",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M3 6H5H21" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M3 6H5H21"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
     <Path
       d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
       stroke={color}
@@ -115,8 +184,20 @@ const TrashIcon = ({ color = "#EF4444", size = 24 }: { color?: string; size?: nu
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Path d="M10 11V17" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M14 11V17" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M10 11V17"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M14 11V17"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
@@ -138,9 +219,13 @@ const MenuItem: React.FC<MenuItemProps> = ({
   showArrow = true,
 }) => (
   <PressableMenuItem onPress={onPress} style={styles.menuItem}>
-    <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>{icon}</View>
+    <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
+      {icon}
+    </View>
     <View style={styles.menuContent}>
-      <Text style={[styles.menuTitle, danger && styles.menuTitleDanger]}>{title}</Text>
+      <Text style={[styles.menuTitle, danger && styles.menuTitleDanger]}>
+        {title}
+      </Text>
       {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
     </View>
     {showArrow && <ChevronRightIcon color="#9CA3AF" size={20} />}
@@ -184,7 +269,7 @@ export default function ProfileScreen() {
 
   /**
    * REAL DELETE ACCOUNT
-   * 
+   *
    * This actually deletes:
    * 1. User row from database
    * 2. All onboarding data
@@ -193,7 +278,7 @@ export default function ProfileScreen() {
    */
   const handleDeleteAccount = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    
+
     Alert.alert(
       "⚠️ Delete Account",
       "This action CANNOT be undone. All your data will be PERMANENTLY deleted:\n\n• Your profile\n• Onboarding data\n• JR Score history\n• Roadmap progress\n• All sessions\n\nAre you absolutely sure?",
@@ -250,7 +335,10 @@ export default function ProfileScreen() {
         throw new Error(response.error || "Failed to delete account");
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to delete account. Please try again.");
+      Alert.alert(
+        "Error",
+        error.message || "Failed to delete account. Please try again."
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -299,7 +387,10 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Header */}
-        <Animated.View entering={FadeIn.duration(300)} style={styles.profileHeader}>
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={styles.profileHeader}
+        >
           {/* Avatar */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
@@ -320,7 +411,10 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Menu Sections */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.menuSection}>
+        <Animated.View
+          entering={FadeInDown.delay(100)}
+          style={styles.menuSection}
+        >
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.menuCard}>
             <MenuItem
@@ -334,19 +428,32 @@ export default function ProfileScreen() {
               icon={<SettingsIcon color="#8B5CF6" size={22} />}
               title="Settings"
               subtitle="App preferences"
-              onPress={() => Alert.alert("Coming Soon", "Settings will be available in the next update.")}
+              onPress={() =>
+                Alert.alert(
+                  "Coming Soon",
+                  "Settings will be available in the next update."
+                )
+              }
             />
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.menuSection}>
+        <Animated.View
+          entering={FadeInDown.delay(200)}
+          style={styles.menuSection}
+        >
           <Text style={styles.sectionTitle}>Privacy & Security</Text>
           <View style={styles.menuCard}>
             <MenuItem
               icon={<ShieldIcon color="#10B981" size={22} />}
               title="Privacy Policy"
               subtitle="How we handle your data"
-              onPress={() => Alert.alert("Privacy Policy", "Your data is encrypted and never shared with third parties without your consent.")}
+              onPress={() =>
+                Alert.alert(
+                  "Privacy Policy",
+                  "Your data is encrypted and never shared with third parties without your consent."
+                )
+              }
             />
             <View style={styles.menuDivider} />
             <MenuItem
@@ -358,20 +465,31 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.menuSection}>
+        <Animated.View
+          entering={FadeInDown.delay(300)}
+          style={styles.menuSection}
+        >
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.menuCard}>
             <MenuItem
               icon={<InfoIcon color="#60A5FA" size={22} />}
               title="About EXOPTUS"
               subtitle="Version 1.0.0"
-              onPress={() => Alert.alert("EXOPTUS", "AI-Driven Career Navigation\n\nVersion 1.0.0\n\n© 2026 EXOPTUS")}
+              onPress={() =>
+                Alert.alert(
+                  "EXOPTUS",
+                  "AI-Driven Career Navigation\n\nVersion 1.0.0\n\n© 2026 EXOPTUS"
+                )
+              }
             />
           </View>
         </Animated.View>
 
         {/* Logout */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.menuSection}>
+        <Animated.View
+          entering={FadeInDown.delay(400)}
+          style={styles.menuSection}
+        >
           <View style={styles.menuCard}>
             <MenuItem
               icon={<LogoutIcon color="#EF4444" size={22} />}
@@ -386,7 +504,9 @@ export default function ProfileScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>EXOPTUS v1.0.0</Text>
-          <Text style={styles.footerSubtext}>Your career navigation companion</Text>
+          <Text style={styles.footerSubtext}>
+            Your career navigation companion
+          </Text>
         </View>
       </ScrollView>
 
@@ -409,14 +529,20 @@ export default function ProfileScreen() {
       >
         <View style={modalStyles.container}>
           <View style={modalStyles.header}>
-            <PressableCard onPress={() => setShowEditModal(false)} style={modalStyles.cancelButton}>
+            <PressableCard
+              onPress={() => setShowEditModal(false)}
+              style={modalStyles.cancelButton}
+            >
               <Text style={modalStyles.cancelText}>Cancel</Text>
             </PressableCard>
             <Text style={modalStyles.title}>Edit Profile</Text>
             <PressableCard
               onPress={handleSaveProfile}
               disabled={isSaving}
-              style={[modalStyles.saveButton, isSaving && modalStyles.saveButtonDisabled]}
+              style={[
+                modalStyles.saveButton,
+                isSaving && modalStyles.saveButtonDisabled,
+              ]}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color="#FFF" />

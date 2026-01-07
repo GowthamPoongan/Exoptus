@@ -21,3 +21,20 @@ export { JRScoreCard } from "./JRScoreCard";
 export { OdysseyCard } from "./OdysseyCard";
 export { ActionCard } from "./ActionCard";
 export { CalendarModal } from "./CalendarModal";
+
+// New Premium Components
+export { JRScoreDashboardCard } from "./JRScoreDashboardCard";
+export { TimelineRoadmap } from "./TimelineRoadmap";
+export {
+  PressableCard,
+  PressableActionCard,
+  PressableMenuItem,
+} from "./PressableCard";
+export {
+  Skeleton,
+  DashboardScoreSkeleton,
+  RoadmapSkeleton,
+  RoadmapItemSkeleton,
+  ProfileCardSkeleton,
+  ActionCardSkeleton,
+} from "./Skeleton";

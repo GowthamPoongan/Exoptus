@@ -246,7 +246,7 @@ const TabItem: React.FC<{
     transform: [{ scale: scale.value }],
   }));
 
-  const iconColor = isActive ? "#FFFFFF" : "#71717A";
+  const iconColor = isActive ? "#3B82F6" : "#6B7280";
 
   return (
     <AnimatedTouchable
@@ -254,7 +254,9 @@ const TabItem: React.FC<{
       onPress={handlePress}
       activeOpacity={0.8}
     >
-      <View style={styles.iconContainer}>
+      <View
+        style={[styles.iconContainer, isActive && styles.iconContainerActive]}
+      >
         {tab.icon({ color: iconColor, size: 24, focused: isActive })}
       </View>
     </AnimatedTouchable>
@@ -355,11 +357,11 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(0, 0, 0, 0.08)",
     // Premium shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 12,
   },
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
     borderRadius: 32,
-    backgroundColor: "rgba(17, 17, 27, 0.95)",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
   innerBar: {
     flex: 1,
@@ -380,7 +382,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 8,
-    backgroundColor: "rgba(17, 17, 27, 0.85)",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
   tabItem: {
     alignItems: "center",
@@ -394,6 +396,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  iconContainerActive: {
+    backgroundColor: "#3B82F610",
   },
 });
 

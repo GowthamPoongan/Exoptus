@@ -7,7 +7,7 @@
  * - Roadmap preview
  * - Recent progress
  * - Full touch feedback
- * 
+ *
  * Design: Credit score style UI
  */
 
@@ -42,7 +42,10 @@ import { useDashboardStore } from "../../store/dashboardStore";
 import { useUserStore } from "../../store/userStore";
 import { JRScoreDashboardCard } from "../../components/JRScoreDashboardCard";
 import { PressableCard } from "../../components/PressableCard";
-import { DashboardScoreSkeleton, ActionCardSkeleton } from "../../components/Skeleton";
+import {
+  DashboardScoreSkeleton,
+  ActionCardSkeleton,
+} from "../../components/Skeleton";
 import { BottomTabBar } from "../../components/BottomTabBar";
 import { JRScoreBreakdown } from "../../types/jrScore";
 
@@ -50,7 +53,13 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 // Icons
-const BellIcon = ({ color = "#374151", size = 24 }: { color?: string; size?: number }) => (
+const BellIcon = ({
+  color = "#374151",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"
@@ -69,7 +78,13 @@ const BellIcon = ({ color = "#374151", size = 24 }: { color?: string; size?: num
   </Svg>
 );
 
-const ChevronRightIcon = ({ color = "#9CA3AF", size = 20 }: { color?: string; size?: number }) => (
+const ChevronRightIcon = ({
+  color = "#9CA3AF",
+  size = 20,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M9 18L15 12L9 6"
@@ -81,7 +96,13 @@ const ChevronRightIcon = ({ color = "#9CA3AF", size = 20 }: { color?: string; si
   </Svg>
 );
 
-const MapIcon = ({ color = "#3B82F6", size = 24 }: { color?: string; size?: number }) => (
+const MapIcon = ({
+  color = "#3B82F6",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M1 6V22L8 18L16 22L23 18V2L16 6L8 2L1 6Z"
@@ -90,12 +111,30 @@ const MapIcon = ({ color = "#3B82F6", size = 24 }: { color?: string; size?: numb
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Path d="M8 2V18" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M16 6V22" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M8 2V18"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M16 6V22"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
-const FileTextIcon = ({ color = "#10B981", size = 24 }: { color?: string; size?: number }) => (
+const FileTextIcon = ({
+  color = "#10B981",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
@@ -104,14 +143,44 @@ const FileTextIcon = ({ color = "#10B981", size = 24 }: { color?: string; size?:
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Path d="M14 2V8H20" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M16 13H8" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M16 17H8" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M10 9H9H8" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M14 2V8H20"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M16 13H8"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M16 17H8"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M10 9H9H8"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
-const SparklesIcon = ({ color = "#8B5CF6", size = 24 }: { color?: string; size?: number }) => (
+const SparklesIcon = ({
+  color = "#8B5CF6",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"
@@ -130,7 +199,13 @@ const SparklesIcon = ({ color = "#8B5CF6", size = 24 }: { color?: string; size?:
   </Svg>
 );
 
-const TrendingUpIcon = ({ color = "#F59E0B", size = 24 }: { color?: string; size?: number }) => (
+const TrendingUpIcon = ({
+  color = "#F59E0B",
+  size = 24,
+}: {
+  color?: string;
+  size?: number;
+}) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M23 6L13.5 15.5L8.5 10.5L1 18"
@@ -204,7 +279,9 @@ export default function HomeScreen() {
   });
 
   const headerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: withTiming(headerVisible ? 0 : -100, { duration: 250 }) }],
+    transform: [
+      { translateY: withTiming(headerVisible ? 0 : -100, { duration: 250 }) },
+    ],
     opacity: withTiming(headerVisible ? 1 : 0, { duration: 200 }),
   }));
 
@@ -230,13 +307,55 @@ export default function HomeScreen() {
   // Generate mock JR Score breakdown (in real app, this comes from backend)
   const scoreBreakdown: JRScoreBreakdown = {
     total: jrScore,
-    level: jrScore >= 75 ? 'job-ready' : jrScore >= 55 ? 'competitive' : jrScore >= 30 ? 'developing' : 'unprepared',
-    levelLabel: jrScore >= 75 ? 'Job Ready' : jrScore >= 55 ? 'Competitive' : jrScore >= 30 ? 'Developing' : 'Unprepared',
+    level:
+      jrScore >= 75
+        ? "job-ready"
+        : jrScore >= 55
+        ? "competitive"
+        : jrScore >= 30
+        ? "developing"
+        : "unprepared",
+    levelLabel:
+      jrScore >= 75
+        ? "Job Ready"
+        : jrScore >= 55
+        ? "Competitive"
+        : jrScore >= 30
+        ? "Developing"
+        : "Unprepared",
     dimensions: {
-      clarity: { name: 'clarity', score: Math.round(jrScore * 0.28), maxScore: 25, label: 'Clarity', description: 'Goal specificity and role selection', factors: [] },
-      consistency: { name: 'consistency', score: Math.round(jrScore * 0.24), maxScore: 25, label: 'Consistency', description: 'Answer alignment across questions', factors: [] },
-      readiness: { name: 'readiness', score: Math.round(jrScore * 0.26), maxScore: 25, label: 'Readiness', description: 'Skills vs role requirements', factors: [] },
-      execution: { name: 'execution', score: Math.round(jrScore * 0.22), maxScore: 25, label: 'Execution', description: 'Completed actions and tasks', factors: [] },
+      clarity: {
+        name: "clarity",
+        score: Math.round(jrScore * 0.28),
+        maxScore: 25,
+        label: "Clarity",
+        description: "Goal specificity and role selection",
+        factors: [],
+      },
+      consistency: {
+        name: "consistency",
+        score: Math.round(jrScore * 0.24),
+        maxScore: 25,
+        label: "Consistency",
+        description: "Answer alignment across questions",
+        factors: [],
+      },
+      readiness: {
+        name: "readiness",
+        score: Math.round(jrScore * 0.26),
+        maxScore: 25,
+        label: "Readiness",
+        description: "Skills vs role requirements",
+        factors: [],
+      },
+      execution: {
+        name: "execution",
+        score: Math.round(jrScore * 0.22),
+        maxScore: 25,
+        label: "Execution",
+        description: "Completed actions and tasks",
+        factors: [],
+      },
     },
     lastUpdated: new Date().toISOString(),
     changeFromLast: 6,
@@ -245,16 +364,13 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7F5" />
-      
+
       {/* Header */}
       <Animated.View style={[styles.header, headerStyle]}>
         <View style={styles.headerInner}>
           <Text style={styles.headerTitle}>EXOPTUS</Text>
           <View style={styles.headerRight}>
-            <Pressable
-              style={styles.headerIcon}
-              onPress={handleNotifications}
-            >
+            <Pressable style={styles.headerIcon} onPress={handleNotifications}>
               <BellIcon color="#374151" size={22} />
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge}>
@@ -299,7 +415,10 @@ export default function HomeScreen() {
         )}
 
         {/* Quick Actions */}
-        <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.section}>
+        <Animated.View
+          entering={FadeInUp.delay(200).springify()}
+          style={styles.section}
+        >
           <Text style={styles.sectionTitle}>Quick Actions</Text>
 
           {isLoading ? (
@@ -315,12 +434,16 @@ export default function HomeScreen() {
                 style={styles.actionCard}
                 hapticFeedback="medium"
               >
-                <View style={[styles.actionIcon, { backgroundColor: '#3B82F620' }]}>
+                <View
+                  style={[styles.actionIcon, { backgroundColor: "#3B82F620" }]}
+                >
                   <MapIcon color="#3B82F6" size={22} />
                 </View>
                 <View style={styles.actionContent}>
                   <Text style={styles.actionTitle}>View Roadmap</Text>
-                  <Text style={styles.actionDescription}>3 tasks pending this week</Text>
+                  <Text style={styles.actionDescription}>
+                    3 tasks pending this week
+                  </Text>
                 </View>
                 <ChevronRightIcon color="#9CA3AF" size={20} />
               </PressableCard>
@@ -331,13 +454,17 @@ export default function HomeScreen() {
                 style={styles.actionCard}
                 hapticFeedback="medium"
               >
-                <View style={[styles.actionIcon, { backgroundColor: '#10B98120' }]}>
+                <View
+                  style={[styles.actionIcon, { backgroundColor: "#10B98120" }]}
+                >
                   <FileTextIcon color="#10B981" size={22} />
                 </View>
                 <View style={styles.actionContent}>
                   <Text style={styles.actionTitle}>Preview Resume</Text>
                   <Text style={styles.actionDescription}>
-                    {profileCompletion > 0.8 ? 'Ready for review' : 'Draft - needs more data'}
+                    {profileCompletion > 0.8
+                      ? "Ready for review"
+                      : "Draft - needs more data"}
                   </Text>
                 </View>
                 <ChevronRightIcon color="#9CA3AF" size={20} />
@@ -349,12 +476,16 @@ export default function HomeScreen() {
                 style={styles.actionCard}
                 hapticFeedback="medium"
               >
-                <View style={[styles.actionIcon, { backgroundColor: '#8B5CF620' }]}>
+                <View
+                  style={[styles.actionIcon, { backgroundColor: "#8B5CF620" }]}
+                >
                   <SparklesIcon color="#8B5CF6" size={22} />
                 </View>
                 <View style={styles.actionContent}>
                   <Text style={styles.actionTitle}>Talk to Odyssey</Text>
-                  <Text style={styles.actionDescription}>AI career guidance</Text>
+                  <Text style={styles.actionDescription}>
+                    AI career guidance
+                  </Text>
                 </View>
                 <ChevronRightIcon color="#9CA3AF" size={20} />
               </PressableCard>
@@ -363,7 +494,10 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Progress Section */}
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.section}>
+        <Animated.View
+          entering={FadeInUp.delay(300).springify()}
+          style={styles.section}
+        >
           <Text style={styles.sectionTitle}>Your Progress</Text>
 
           <View style={styles.progressCard}>
@@ -379,7 +513,9 @@ export default function HomeScreen() {
               </View>
               <View style={styles.progressDivider} />
               <View style={styles.progressItem}>
-                <Text style={[styles.progressValue, { color: '#10B981' }]}>+15%</Text>
+                <Text style={[styles.progressValue, { color: "#10B981" }]}>
+                  +15%
+                </Text>
                 <Text style={styles.progressLabel}>JR Growth</Text>
               </View>
             </View>
@@ -388,7 +524,10 @@ export default function HomeScreen() {
 
         {/* Missing Skills */}
         {missingSkills && missingSkills.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.section}>
+          <Animated.View
+            entering={FadeInUp.delay(400).springify()}
+            style={styles.section}
+          >
             <Text style={styles.sectionTitle}>Skills to Develop</Text>
             <View style={styles.skillsCard}>
               <View style={styles.skillsHeader}>
