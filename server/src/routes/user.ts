@@ -90,10 +90,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
 
     // Prefer profile data, fallback to onboarding data, then user data
     const name =
-      user.profile?.name ||
-      user.onboardingProfile?.name ||
-      user.name ||
-      null;
+      user.profile?.name || user.onboardingProfile?.name || user.name || null;
 
     const college =
       user.profile?.college || user.onboardingProfile?.college || null;
@@ -487,6 +484,80 @@ router.get(
       res.status(500).json({
         success: false,
         error: "Failed to get onboarding status",
+      });
+    }
+  }
+);
+
+// ============================================
+// DELETE ACCOUNT - REAL DELETE
+// ============================================
+// This endpoint permanently deletes:
+// 1. User row from database
+// 2. All onboarding data
+// 3. All sessions
+// 4. All associated profile data
+// THIS CANNOT BE UNDONE
+router.delete(
+  "/account",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.userId;
+
+      console.log(`⚠️ DELETE ACCOUNT requested for user: ${userId}`);
+
+      // 1. Delete all sessions (invalidate all tokens)
+      await prisma.authSession.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted all sessions for user: ${userId}`);
+
+      // 2. Delete email verification tokens
+      await prisma.emailVerificationToken.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted email tokens for user: ${userId}`);
+
+      // 3. Delete onboarding profile
+      await prisma.onboardingProfile.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted onboarding profile for user: ${userId}`);
+
+      // 4. Delete profile
+      await prisma.profile.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted profile for user: ${userId}`);
+
+      // 5. Delete career analysis
+      await prisma.careerAnalysis.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted career analysis for user: ${userId}`);
+
+      // 6. Delete user feedback
+      await prisma.userFeedback.deleteMany({
+        where: { userId },
+      });
+      console.log(`✓ Deleted user feedback for user: ${userId}`);
+
+      // 7. Finally, delete the user
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+      console.log(`✓ DELETED USER: ${userId}`);
+
+      res.json({
+        success: true,
+        message: "Account permanently deleted",
+      });
+    } catch (error: any) {
+      console.error("❌ Error deleting account:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete account. Please try again.",
       });
     }
   }

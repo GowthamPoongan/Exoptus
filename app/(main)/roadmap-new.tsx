@@ -6,7 +6,7 @@
  * - Vertical timeline with actionable nodes
  * - Active task highlighted
  * - Floating add button
- * 
+ *
  * Each node updates backend status on completion.
  */
 
@@ -54,7 +54,8 @@ const MOCK_ROADMAP_STEPS: RoadmapStep[] = [
   {
     id: "3",
     title: "Career Path Meeting",
-    description: "Discuss team tasks and align on career objectives for the quarter",
+    description:
+      "Discuss team tasks and align on career objectives for the quarter",
     category: "network",
     status: "active",
     impactScore: 10,
@@ -78,7 +79,8 @@ const MOCK_ROADMAP_STEPS: RoadmapStep[] = [
   {
     id: "5",
     title: "Build Portfolio Project",
-    description: "Start working on a portfolio project that showcases your skills",
+    description:
+      "Start working on a portfolio project that showcases your skills",
     category: "project",
     status: "locked",
     impactScore: 15,
@@ -88,7 +90,8 @@ const MOCK_ROADMAP_STEPS: RoadmapStep[] = [
   {
     id: "6",
     title: "LinkedIn Optimization",
-    description: "Update your LinkedIn profile with keywords for your target role",
+    description:
+      "Update your LinkedIn profile with keywords for your target role",
     category: "network",
     status: "locked",
     impactScore: 6,
@@ -112,47 +115,57 @@ export default function RoadmapScreen() {
     console.log("Step pressed:", step.title);
   }, []);
 
-  const handleStepComplete = useCallback((stepId: string) => {
-    // Update local state
-    setSteps((prevSteps) => {
-      const newSteps = prevSteps.map((step) => {
-        if (step.id === stepId) {
-          return { ...step, status: "done" as const, completedAt: new Date().toISOString() };
+  const handleStepComplete = useCallback(
+    (stepId: string) => {
+      // Update local state
+      setSteps((prevSteps) => {
+        const newSteps = prevSteps.map((step) => {
+          if (step.id === stepId) {
+            return {
+              ...step,
+              status: "done" as const,
+              completedAt: new Date().toISOString(),
+            };
+          }
+          return step;
+        });
+
+        // Find the completed step's index
+        const completedIndex = newSteps.findIndex((s) => s.id === stepId);
+
+        // Unlock next step if exists
+        if (completedIndex !== -1 && completedIndex < newSteps.length - 1) {
+          const nextStep = newSteps[completedIndex + 1];
+          if (nextStep.status === "locked") {
+            newSteps[completedIndex + 1] = {
+              ...nextStep,
+              status: "active" as const,
+            };
+          }
         }
-        return step;
+
+        return newSteps;
       });
 
-      // Find the completed step's index
-      const completedIndex = newSteps.findIndex((s) => s.id === stepId);
-      
-      // Unlock next step if exists
-      if (completedIndex !== -1 && completedIndex < newSteps.length - 1) {
-        const nextStep = newSteps[completedIndex + 1];
-        if (nextStep.status === "locked") {
-          newSteps[completedIndex + 1] = { ...nextStep, status: "active" as const };
-        }
+      // Calculate impact on JR Score
+      const completedStep = steps.find((s) => s.id === stepId);
+      if (completedStep) {
+        const newScore = Math.min(100, jrScore + completedStep.impactScore);
+        setJRScore(newScore);
+
+        // Show success feedback
+        Alert.alert(
+          "Task Completed! 🎉",
+          `+${completedStep.impactScore} JR Score points earned`,
+          [{ text: "Continue", style: "default" }]
+        );
       }
 
-      return newSteps;
-    });
-
-    // Calculate impact on JR Score
-    const completedStep = steps.find((s) => s.id === stepId);
-    if (completedStep) {
-      const newScore = Math.min(100, jrScore + completedStep.impactScore);
-      setJRScore(newScore);
-      
-      // Show success feedback
-      Alert.alert(
-        "Task Completed! 🎉",
-        `+${completedStep.impactScore} JR Score points earned`,
-        [{ text: "Continue", style: "default" }]
-      );
-    }
-
-    // In production, sync to backend
-    // api.post('/roadmap/complete', { stepId });
-  }, [steps, jrScore, setJRScore]);
+      // In production, sync to backend
+      // api.post('/roadmap/complete', { stepId });
+    },
+    [steps, jrScore, setJRScore]
+  );
 
   return (
     <View style={styles.container}>

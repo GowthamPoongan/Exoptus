@@ -485,7 +485,7 @@ export default function ChatScreen() {
 
       {/* Background */}
       <ImageBackground
-        source={require("../../assets/images/chat-bg.jpg")}
+        source={require("../../assets/images/chat-bg.png")}
         style={styles.background}
         resizeMode="cover"
       >

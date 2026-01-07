@@ -1270,7 +1270,7 @@ export default function ChatScreen() {
 
       {/* Background - Blue/Pink Gradient */}
       <ImageBackground
-        source={require("../../assets/images/chat-bg.jpg")}
+        source={require("../../assets/images/chat-bg.png")}
         style={styles.background}
         resizeMode="cover"
       >

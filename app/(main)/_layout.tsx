@@ -31,7 +31,7 @@ export default function MainLayout() {
         screenOptions={{
           headerShown: false,
           animation: "fade",
-          contentStyle: { backgroundColor: "#0A0A0F" },
+          contentStyle: { backgroundColor: "#F9FAFB" },
         }}
       >
         <Stack.Screen name="home" />
@@ -48,8 +48,7 @@ export default function MainLayout() {
         />
       </Stack>
 
-      {/* Floating Bottom Tab Bar */}
-      {showTabBar && <BottomTabBar />}
+      {/* Floating Bottom Tab Bar - Now handled by screens */}
     </View>
   );
 }
@@ -57,6 +56,6 @@ export default function MainLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A0F",
+    backgroundColor: "#F9FAFB",
   },
 });
