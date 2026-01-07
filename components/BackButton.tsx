@@ -10,7 +10,12 @@
  */
 
 import React from "react";
-import { TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import {
+  TouchableOpacity,
+  StyleSheet,
+  StyleProp,
+  ViewStyle,
+} from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,

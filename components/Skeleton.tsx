@@ -6,7 +6,13 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Dimensions, StyleProp, ViewStyle } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  StyleProp,
+  ViewStyle,
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

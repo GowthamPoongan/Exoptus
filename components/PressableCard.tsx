@@ -87,7 +87,7 @@ export const PressableCard: React.FC<PressableCardProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
-      style={[styles.base, animatedStyle, style]}
+      style={[styles.base, animatedStyle, style] as StyleProp<ViewStyle>}
       {...props}
     >
       {children}
@@ -101,7 +101,7 @@ export const PressableActionCard: React.FC<PressableCardProps> = (props) => (
     hapticFeedback="medium"
     scaleAmount={0.97}
     {...props}
-    style={[styles.actionCard, props.style]}
+    style={[styles.actionCard, props.style] as StyleProp<ViewStyle>}
   />
 );
 
@@ -111,7 +111,7 @@ export const PressableMenuItem: React.FC<PressableCardProps> = (props) => (
     scaleAmount={0.99}
     activeOpacity={0.7}
     {...props}
-    style={[styles.menuItem, props.style]}
+    style={[styles.menuItem, props.style] as StyleProp<ViewStyle>}
   />
 );
 
