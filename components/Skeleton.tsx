@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Dimensions, ViewStyle } from "react-native";
+import { View, StyleSheet, Dimensions, StyleProp, ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,7 +22,7 @@ interface SkeletonProps {
   width?: number | string;
   height?: number;
   borderRadius?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 // Base skeleton with shimmer effect

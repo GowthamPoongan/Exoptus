@@ -14,6 +14,7 @@ import {
   Pressable,
   PressableProps,
   StyleSheet,
+  StyleProp,
   ViewStyle,
   Platform,
 } from "react-native";
@@ -29,7 +30,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PressableCardProps extends Omit<PressableProps, "style"> {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   disabled?: boolean;
   hapticFeedback?: "light" | "medium" | "heavy" | "none";

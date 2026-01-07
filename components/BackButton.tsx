@@ -10,7 +10,7 @@
  */
 
 import React from "react";
-import { TouchableOpacity, StyleSheet, ViewStyle } from "react-native";
+import { TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,
@@ -23,7 +23,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface BackButtonProps {
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   color?: string;
 }
 
